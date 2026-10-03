@@ -1,0 +1,2671 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PORTFOLYO</title>
+<meta name="description" content="8-bit retro oyun temalı portfolyo: kaseti tak, projeyi oynat.">
+<!-- Tarayıcının favicon.ico istemesini engeller (sayfada görsel isteği olmasın) -->
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap&subset=latin-ext" rel="stylesheet">
+<style>
+/* ==========================================================
+   1. DEĞİŞKENLER (renk, boyut, süre)
+   ========================================================== */
+:root {
+  /* Palet (NES benzeri) */
+  --c-bg: #07060f;
+  --c-black: #000000;
+  --c-dark: #1c1c2c;
+  --c-grey-d: #7c7c7c;
+  --c-grey: #bcbcbc;
+  --c-white: #fcfcfc;
+  --c-red: #d82800;
+  --c-yellow: #f8b800;
+  --c-green: #58d854;
+  --c-cyan: #3cbcfc;
+  --c-purple: #6844fc;
+  --c-pink: #f878f8;
+  --c-tv: #f8a4c0;
+  --c-tv-d: #d87898;
+  --c-tv-panel: #fce0a8;
+  --c-wall: #6c7cc8;
+  --c-floor: #a8703c;
+  --c-night: #101450;
+  --c-phosphor: #b8f8b8;
+  --c-screen: #06140e;
+
+  /* Sahne */
+  --persp: 1400px;
+  --pivot-y: 220px;          /* kamera dönüş merkezinin zeminden yüksekliği */
+
+  /* Oda (arka duvar --room-z konumunda, zemin öne doğru --room-d kadar) */
+  --room-w: 1400px;
+  --room-h: 760px;
+  --room-d: 700px;
+  --room-z: -250px;
+
+  /* TV */
+  --tv-w: 470px;
+  --tv-h: 330px;
+  --tv-d: 240px;
+  --tv-z: -110px;
+  --stand-w: 520px;
+  --stand-h: 90px;
+  --stand-d: 260px;
+
+  /* Konsol */
+  --con-w: 300px;
+  --con-h: 46px;
+  --con-d: 150px;
+  --con-z: 110px;
+  --slot-depth: 34px;        /* kasetin yuvaya girdiği derinlik */
+
+  /* Kasetler ve raf */
+  --cart-w: 68px;
+  --cart-h: 84px;
+  --cart-d: 14px;
+  --cart-gap: 10px;
+  --rack-h: 10px;
+  --rack-d: 34px;
+  --rack-z: 235px;
+  --lift: 96px;              /* raftan kalkış yüksekliği */
+  --hover-lift: 10px;
+
+  /* Türetilmiş kaset konumları (kutu merkezleri) */
+  --home-y: calc(-1 * var(--rack-h) - var(--cart-h) / 2);
+  --slot-y: calc(-1 * var(--con-h) + var(--slot-depth) - var(--cart-h) / 2);
+  --over-y: calc(var(--slot-y) - 78px);
+
+  /* Süreler */
+  --t-lift: 200ms;
+  --t-glide: 380ms;
+  --t-drop: 260ms;
+  --t-settle: 160ms;
+  --t-eject-up: 180ms;
+  --t-eject-glide: 320ms;
+  --t-eject-down: 180ms;
+  --t-boot: 360ms;
+  --t-type: 18ms;            /* daktilo: harf başına süre */
+  --t-hover: 120ms;
+  --t-blink: 1s;
+  --t-flicker: 4.3s;
+  --t-scanband: 6s;
+  --t-poke: 700ms;
+  --t-deal: 340ms;           /* kazanılan kasetin rafa inişi */
+  --t-deal-gap: 130ms;       /* kasetler arası gecikme */
+
+  --font: "Press Start 2P", ui-monospace, "Courier New", monospace;
+}
+
+/* ==========================================================
+   2. TEMEL
+   ========================================================== */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  background:
+    linear-gradient(to bottom, #05040c 0%, #120a2a 52%, var(--c-bg) 100%);
+  color: var(--c-white);
+  font-family: var(--font);
+  /* Pixel fontta anti-aliasing kapalı */
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: grayscale;
+  font-smooth: never;
+  text-rendering: optimizeSpeed;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ==========================================================
+   3. BAŞLIK VE İPUCU (HUD)
+   ========================================================== */
+.hud {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: start;
+  gap: 10px 8px;
+  padding: 14px 12px 16px;
+  /* Duvarın üstünde okunaklı kalsın */
+  background: linear-gradient(to bottom, rgba(7, 6, 15, .8) 45%, transparent);
+  pointer-events: none;
+}
+
+.hud__title { text-align: center; }
+
+.hud__title h1 {
+  margin: 0;
+  font-size: clamp(12px, 3.4vw, 22px);
+  font-weight: 400;
+  line-height: 1.4;
+  /* lang="tr" sayesinde i -> İ olarak büyür */
+  text-transform: uppercase;
+  color: var(--c-white);
+  text-shadow: 3px 3px 0 var(--c-purple);
+}
+
+.hud__title p {
+  margin: 8px 0 0;
+  font-size: clamp(8px, 2.2vw, 12px);
+  letter-spacing: 4px;
+  color: var(--c-yellow);
+  text-shadow: 2px 2px 0 var(--c-red);
+}
+
+/* Ziyaretçi sayaçları: atari skor tabelası gibi */
+.hud__stat {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 2px 0 0;
+  font-size: clamp(6px, 1.9vw, 10px);
+  line-height: 1;
+  color: var(--c-pink);
+  text-shadow: 2px 2px 0 var(--c-black);
+}
+
+.hud__stat b {
+  font-weight: 400;
+  color: var(--c-white);
+}
+
+.hud__stat--right { align-items: flex-end; }
+
+/* Bağlantılar: GitHub, LinkedIn, Medium, CV */
+.hud__links {
+  grid-column: 1 / -1;
+  justify-self: center;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  pointer-events: auto;
+}
+
+.hud__link {
+  padding: 6px 8px 5px;
+  border: 2px solid var(--c-cyan);
+  background: rgba(7, 6, 15, .85);
+  font-size: clamp(7px, 2vw, 9px);
+  line-height: 1;
+  color: var(--c-cyan);
+  text-decoration: none;
+}
+
+.hud__link--cv {
+  border-color: var(--c-yellow);
+  color: var(--c-yellow);
+}
+
+a.hud__link:hover,
+a.hud__link:focus-visible {
+  background: var(--c-white);
+  border-color: var(--c-white);
+  color: var(--c-black);
+  outline: none;
+}
+
+/* Adresi henüz girilmemiş bağlantı */
+.hud__link.is-empty {
+  border-style: dashed;
+  border-color: var(--c-grey-d);
+  color: var(--c-grey-d);
+  cursor: default;
+}
+
+.hint {
+  position: fixed;
+  left: 8px;
+  bottom: 8px;
+  z-index: 2;
+  max-width: calc(100% - 16px);
+  margin: 0;
+  padding: 5px 7px 4px;
+  background: rgba(7, 6, 15, .75);
+  font-size: clamp(6px, 1.8vw, 8px);
+  line-height: 1.8;
+  color: var(--c-grey);
+  pointer-events: none;
+}
+
+/* ==========================================================
+   4. 3D SAHNE İSKELETİ
+   ========================================================== */
+.viewport {
+  --scale: 1;
+  --cam-top: 50%;
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  perspective: calc(var(--persp) * var(--scale));
+  perspective-origin: 50% var(--cam-top);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: grab;
+}
+
+.is-dragging .viewport { cursor: grabbing; }
+
+.camera,
+.world {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  transform-style: preserve-3d;
+}
+
+.camera {
+  left: 50%;
+  top: var(--cam-top);
+}
+
+.world { transform: translateY(var(--pivot-y)); }
+
+/* Genel kutu: --w/--h/--d boyut, --x/--y/--z merkez konumu */
+.box {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--w);
+  height: var(--h);
+  margin: calc(var(--h) / -2) 0 0 calc(var(--w) / -2);
+  transform: translate3d(var(--x, 0px), var(--y, 0px), var(--z, 0px));
+  transform-style: preserve-3d;
+}
+
+.face {
+  position: absolute;
+  background-color: var(--c);
+  box-shadow: inset 0 0 0 2px rgba(0, 0, 0, .35);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.face--front,
+.face--back { inset: 0; }
+
+.face--left,
+.face--right {
+  top: 0;
+  left: calc((var(--w) - var(--d)) / 2);
+  width: var(--d);
+  height: var(--h);
+}
+
+.face--top,
+.face--bottom {
+  left: 0;
+  top: calc((var(--h) - var(--d)) / 2);
+  width: var(--w);
+  height: var(--d);
+}
+
+.face--front  { transform: translateZ(calc(var(--d) / 2)); }
+.face--back   { transform: rotateY(180deg) translateZ(calc(var(--d) / 2)); }
+.face--right  { transform: rotateY(90deg) translateZ(calc(var(--w) / 2)); }
+.face--left   { transform: rotateY(-90deg) translateZ(calc(var(--w) / 2)); }
+.face--top    { transform: rotateX(90deg) translateZ(calc(var(--h) / 2)); }
+.face--bottom { transform: rotateX(-90deg) translateZ(calc(var(--h) / 2)); }
+
+/* Yüz gölgelendirmesi: üst açık, yanlar ve arka koyu */
+.face--top    { background-image: linear-gradient(rgba(255, 255, 255, .14), rgba(255, 255, 255, .14)); }
+.face--left,
+.face--right  { background-image: linear-gradient(rgba(0, 0, 0, .28), rgba(0, 0, 0, .28)); }
+.face--back   { background-image: linear-gradient(rgba(0, 0, 0, .42), rgba(0, 0, 0, .42)); }
+.face--bottom { background-image: linear-gradient(rgba(0, 0, 0, .55), rgba(0, 0, 0, .55)); }
+
+/* ==========================================================
+   5. ÇOCUK ODASI: duvarlar, zemin, halı, duvar süsleri
+   ========================================================== */
+.wall,
+.floor,
+.rug,
+.floor-glow {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+}
+
+/* Duvar kâğıdı: çizgili, üstte akşam loşluğu, altta süpürgelik */
+.wall {
+  height: var(--room-h);
+  background-color: var(--c-wall);
+  background-image:
+    linear-gradient(to top, var(--c-white) 0 18px, transparent 18px),
+    linear-gradient(to bottom, rgba(7, 6, 15, .6), transparent 65%),
+    repeating-linear-gradient(to right, transparent 0 40px, rgba(255, 255, 255, .08) 40px 80px);
+}
+
+.wall--back {
+  width: var(--room-w);
+  margin: calc(-1 * var(--room-h)) 0 0 calc(var(--room-w) / -2);
+  transform: translateZ(var(--room-z));
+}
+
+/* Yan duvarlar yalnızca içeriden görünür (maket ev gibi) */
+.wall--left,
+.wall--right {
+  width: var(--room-d);
+  margin: calc(-1 * var(--room-h)) 0 0 calc(var(--room-d) / -2);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  background-color: #5c6cb8;
+}
+
+.wall--left {
+  transform: translate3d(calc(var(--room-w) / -2), 0, calc(var(--room-z) + var(--room-d) / 2)) rotateY(90deg);
+}
+
+.wall--right {
+  transform: translate3d(calc(var(--room-w) / 2), 0, calc(var(--room-z) + var(--room-d) / 2)) rotateY(-90deg);
+}
+
+/* Ahşap parke */
+.floor {
+  width: var(--room-w);
+  height: var(--room-d);
+  margin: calc(var(--room-d) / -2) 0 0 calc(var(--room-w) / -2);
+  transform: translateZ(calc(var(--room-z) + var(--room-d) / 2)) rotateX(90deg);
+  background-color: var(--c-floor);
+  background-image:
+    linear-gradient(to bottom, rgba(7, 6, 15, .45), transparent 70%),
+    repeating-linear-gradient(to right, rgba(0, 0, 0, .3) 0 2px, transparent 2px 70px),
+    repeating-linear-gradient(to bottom, rgba(0, 0, 0, .12) 0 2px, transparent 2px 175px);
+}
+
+/* Halı: retro ızgara desenli */
+.rug {
+  width: 660px;
+  height: 400px;
+  margin: -200px 0 0 -330px;
+  transform: translate3d(0, -1px, 170px) rotateX(90deg);
+  background-color: var(--c-white);
+  background-image:
+    repeating-linear-gradient(to right, rgba(255, 255, 255, .35) 0 2px, transparent 2px 40px),
+    repeating-linear-gradient(to bottom, rgba(255, 255, 255, .35) 0 2px, transparent 2px 40px),
+    linear-gradient(var(--c-purple), var(--c-purple));
+  background-size: auto, auto, calc(100% - 24px) calc(100% - 24px);
+  background-position: 12px 12px, 12px 12px, center;
+  background-repeat: repeat, repeat, no-repeat;
+}
+
+/* TV'den zemine vuran ışık */
+.floor-glow {
+  width: 900px;
+  height: 620px;
+  margin: -310px 0 0 -450px;
+  transform: translate3d(0, -2px, 140px) rotateX(90deg);
+  background: radial-gradient(closest-side, rgba(88, 216, 84, .2), transparent);
+}
+
+.world.is-on .floor-glow {
+  background: radial-gradient(closest-side, rgba(184, 248, 184, .34), transparent);
+}
+
+/* ----- Duvar süsleri (arka duvarın içinde, düz) ----- */
+/* Bayrak süsü: zikzak clip-path JS'te üretilir */
+.bunting {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 178px;
+  height: 46px;
+  background: repeating-linear-gradient(to right,
+    var(--c-pink) 0 70px, var(--c-yellow) 70px 140px,
+    var(--c-cyan) 140px 210px, var(--c-white) 210px 280px);
+}
+
+.window {
+  position: absolute;
+  left: 150px;
+  top: 250px;
+  width: 230px;
+  height: 250px;
+  border: 10px solid var(--c-white);
+  background-color: var(--c-night);
+  /* Pencere çıtaları */
+  background-image:
+    linear-gradient(var(--c-white), var(--c-white)),
+    linear-gradient(var(--c-white), var(--c-white));
+  background-size: 8px 100%, 100% 8px;
+  background-position: center;
+  background-repeat: no-repeat;
+  box-shadow: 0 0 0 4px rgba(0, 0, 0, .3);
+}
+
+.window__moon {
+  position: absolute;
+  right: 22px;
+  top: 20px;
+  width: 32px;
+  height: 32px;
+  background: #f8f0b0;
+  box-shadow: 0 0 18px 4px rgba(248, 240, 176, .35);
+}
+
+/* Hilal için ayın bir köşesini gece rengiyle kapat */
+.window__moon::after {
+  content: "";
+  position: absolute;
+  left: -8px;
+  top: -8px;
+  width: 24px;
+  height: 24px;
+  background: var(--c-night);
+}
+
+.window__stars {
+  position: absolute;
+  left: 20px;
+  top: 24px;
+  width: 4px;
+  height: 4px;
+  background: var(--c-white);
+  box-shadow:
+    40px 20px var(--c-white), 70px -6px var(--c-white), 18px 70px var(--c-white),
+    60px 130px var(--c-white), 130px 96px var(--c-white), 160px 150px var(--c-white),
+    110px 40px var(--c-white), 30px 170px var(--c-white), 150px 60px var(--c-white);
+}
+
+.poster {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  border: 6px solid var(--c-white);
+  background: var(--c-dark);
+  box-shadow: 0 0 0 4px rgba(0, 0, 0, .3);
+  font-size: 12px;
+  color: var(--c-dark);
+}
+
+/* Posterler logo çerçevelerinin altındaki sırada */
+.poster--invader {
+  left: 1016px;
+  top: 384px;
+  width: 124px;
+  height: 108px;
+}
+
+.poster--heart {
+  left: 1168px;
+  top: 388px;
+  width: 100px;
+  height: 104px;
+  gap: 8px;
+  background: var(--c-yellow);
+}
+
+/* GitHub / LinkedIn / Medium çerçeveleri: piksel logo + isim, tıklanınca açılır */
+.social {
+  position: absolute;
+  top: 250px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  width: 96px;
+  height: 112px;
+  border: 6px solid var(--c-white);
+  background: var(--bg);
+  box-shadow: 0 0 0 4px rgba(0, 0, 0, .3);
+  font-size: 7px;
+  line-height: 1;
+  color: var(--fg);
+  text-decoration: none;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+a.social:hover,
+a.social:focus-visible {
+  outline: 4px solid var(--c-yellow);
+  outline-offset: 2px;
+}
+
+/* Duvardaki CV kâğıdı: LINKS içindeki CV adresi doluysa tıklanınca açılır */
+.cv-paper {
+  position: absolute;
+  left: 20px;
+  top: 262px;
+  width: 112px;
+  height: 152px;
+  padding: 16px 10px 0;
+  rotate: -3deg;
+  background-color: var(--c-white);
+  /* Fotoğraf kutusu + yazı satırları */
+  background-image:
+    linear-gradient(var(--c-grey), var(--c-grey)),
+    repeating-linear-gradient(to bottom, var(--c-grey) 0 3px, transparent 3px 10px);
+  background-size: 30px 30px, 92px 62px;
+  background-position: 72px 14px, 10px 56px;
+  background-repeat: no-repeat;
+  box-shadow: 0 0 0 4px rgba(0, 0, 0, .3);
+  font-size: 18px;
+  line-height: 1;
+  color: var(--c-dark);
+  text-decoration: none;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+/* Raptiye */
+.cv-paper::before {
+  content: "";
+  position: absolute;
+  left: calc(50% - 5px);
+  top: -5px;
+  width: 10px;
+  height: 10px;
+  background: var(--c-red);
+}
+
+.cv-paper__note {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 9px;
+  font-size: 7px;
+  text-align: center;
+  color: var(--c-red);
+}
+
+a.cv-paper:hover,
+a.cv-paper:focus-visible {
+  outline: 4px solid var(--c-yellow);
+  outline-offset: 2px;
+}
+
+/* Piksel çizim (JS'teki pixelArt): tek bir noktanın box-shadow kopyaları */
+.px {
+  position: relative;
+  display: block;
+  flex: none;
+}
+
+.px > i { position: absolute; }
+
+/* ==========================================================
+   5b. OYUNCAKLAR VE OYUN KOLLARI (JS'te kutulardan kurulur)
+   ========================================================== */
+.group {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  transform-style: preserve-3d;
+  pointer-events: none;
+}
+
+.group .face { box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .25); }
+
+/* Tıklanınca tepki veren nesneler */
+.pokeable {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.group.is-poked { animation: poke-hop var(--t-poke) steps(7, end); }
+
+.poster.is-poked,
+.social.is-poked,
+.cv-paper.is-poked,
+.window.is-poked {
+  transform-origin: 50% 0;
+  animation: poke-wiggle var(--t-poke) steps(7, end);
+}
+
+/* Konuşma balonu: yalnızca tepki sırasında görünür */
+.bubble {
+  position: absolute;
+  left: 0;
+  padding: 4px 5px 3px;
+  background: var(--c-white);
+  box-shadow: 0 0 0 2px var(--c-black);
+  font-size: 7px;
+  line-height: 1;
+  white-space: nowrap;
+  color: var(--c-black);
+  visibility: hidden;
+}
+
+.is-poked > .bubble { visibility: visible; }
+
+/* Kermit: ağız ve göz bebekleri */
+.kermit__head > .face--front {
+  background-image: linear-gradient(to bottom, transparent 0 15px, #a81000 15px 19px, transparent 19px);
+}
+
+.kermit__eye > .face--front {
+  background-image: linear-gradient(var(--c-black), var(--c-black));
+  background-size: 10px 4px;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+/* Snoopy: gözler, ağız çizgisi, pati çizgileri */
+.snoopy__head > .face--front {
+  background-image:
+    linear-gradient(var(--c-black), var(--c-black)),
+    linear-gradient(var(--c-black), var(--c-black));
+  background-size: 3px 6px;
+  background-position: 9px 2px, 20px 2px;
+  background-repeat: no-repeat;
+}
+
+.snoopy__snout > .face--front {
+  background-image: linear-gradient(to bottom, transparent 0 11px, var(--c-black) 11px 12px, transparent 12px);
+  background-size: 12px 100%;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.snoopy__foot > .face--front {
+  background-image: repeating-linear-gradient(to right, transparent 0 3px, var(--c-black) 3px 4px);
+  background-size: 100% 4px;
+  background-position: bottom;
+  background-repeat: no-repeat;
+}
+
+/* Kulübe ön yüzü: kapı ve isim */
+.doghouse__body > .face--front {
+  display: flex;
+  justify-content: center;
+  padding-top: 7px;
+  font-size: 7px;
+  color: var(--c-white);
+  background-image: linear-gradient(var(--c-black), var(--c-black));
+  background-size: 42px 46px;
+  background-position: bottom;
+  background-repeat: no-repeat;
+}
+
+/* Woodstock: gözler */
+.woodstock__head > .face--front {
+  background-image:
+    linear-gradient(var(--c-black), var(--c-black)),
+    linear-gradient(var(--c-black), var(--c-black));
+  background-size: 2px 2px;
+  background-position: 2px 3px, 8px 3px;
+  background-repeat: no-repeat;
+}
+
+/* Oyun kolu üst yüzü: yön tuşu, SELECT/START, A/B */
+.pad > .face--top {
+  background-image:
+    linear-gradient(var(--c-black), var(--c-black)),
+    linear-gradient(var(--c-black), var(--c-black)),
+    linear-gradient(var(--c-grey-d), var(--c-grey-d)),
+    linear-gradient(var(--c-grey-d), var(--c-grey-d)),
+    linear-gradient(var(--c-red), var(--c-red)),
+    linear-gradient(var(--c-red), var(--c-red)),
+    linear-gradient(var(--c-dark), var(--c-dark));
+  background-size: 18px 6px, 6px 18px, 6px 3px, 6px 3px, 8px 8px, 8px 8px, 68px 30px;
+  background-position: 9px 16px, 15px 10px, 32px 21px, 41px 21px, 52px 15px, 63px 15px, 4px 4px;
+  background-repeat: no-repeat;
+}
+
+/* Harfli küpler */
+.block > .face {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  color: var(--c-white);
+  box-shadow: inset 0 0 0 4px rgba(255, 255, 255, .35);
+}
+
+/* ==========================================================
+   6. TV SEHPASI
+   ========================================================== */
+.stand {
+  --w: var(--stand-w);
+  --h: var(--stand-h);
+  --d: var(--stand-d);
+  --c: #d8d0e8;
+  --y: calc(var(--stand-h) / -2);
+  --z: var(--tv-z);
+}
+
+/* İki çekmece ve kulpları */
+.stand .face--front {
+  background-image:
+    linear-gradient(var(--c-yellow), var(--c-yellow)),
+    linear-gradient(var(--c-yellow), var(--c-yellow)),
+    linear-gradient(to right, transparent 49.6%, rgba(0, 0, 0, .45) 49.6% 50.4%, transparent 50.4%);
+  background-size: 28px 10px, 28px 10px, auto;
+  background-position: 25% 50%, 75% 50%, 0 0;
+  background-repeat: no-repeat, no-repeat, repeat;
+}
+
+/* ==========================================================
+   7. CRT TV
+   ========================================================== */
+.tv {
+  --w: var(--tv-w);
+  --h: var(--tv-h);
+  --d: var(--tv-d);
+  --c: var(--c-tv);
+  --y: calc(-1 * var(--stand-h) - var(--tv-h) / 2);
+  --z: var(--tv-z);
+}
+
+.tv > .face--back {
+  background-image:
+    repeating-linear-gradient(to bottom, rgba(0, 0, 0, .5) 0 4px, transparent 4px 14px),
+    linear-gradient(rgba(0, 0, 0, .45), rgba(0, 0, 0, .45));
+}
+
+.tv__front {
+  border: 12px solid var(--c-tv);
+  background-color: var(--c-tv-panel);
+}
+
+.tv__bezel {
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  width: 348px;
+  height: 272px;
+  background: #2c2c3a;
+  border: 4px solid var(--c-dark);
+}
+
+/* Bombeli cam: border-radius yalnızca burada */
+.tv__glass {
+  position: absolute;
+  inset: 8px;
+  overflow: hidden;
+  border-radius: 30px / 26px;
+  background: radial-gradient(ellipse at 50% 45%, #0e2e1e 0%, var(--c-screen) 68%, #020806 100%);
+  box-shadow:
+    0 0 0 2px var(--c-black),
+    0 0 34px 6px rgba(88, 216, 84, .28),
+    inset 0 0 34px rgba(0, 0, 0, .85);
+  animation: flicker var(--t-flicker) steps(1, end) infinite;
+}
+
+.world.is-on .tv__glass {
+  box-shadow:
+    0 0 0 2px var(--c-black),
+    0 0 46px 10px rgba(184, 248, 184, .36),
+    inset 0 0 34px rgba(0, 0, 0, .85);
+}
+
+.tv__panel {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 68px;
+  height: 272px;
+}
+
+/* Döner düğme: köşeleri kırpılmış (pikselli) sekizgen */
+.tv__knob {
+  position: absolute;
+  left: 12px;
+  top: 6px;
+  width: 44px;
+  height: 44px;
+  background:
+    linear-gradient(to bottom, var(--c-white) 0 4px, transparent 4px) 20px 4px / 4px 14px no-repeat,
+    var(--c-yellow);
+  box-shadow: inset 0 0 0 4px var(--c-red);
+  clip-path: polygon(30% 0, 70% 0, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0 70%, 0 30%);
+  cursor: pointer;
+  transition: rotate 160ms steps(3, end);
+}
+
+.tv__knob--2 {
+  top: 60px;
+  transform: rotate(135deg);
+  background-color: var(--c-cyan);
+  box-shadow: inset 0 0 0 4px var(--c-purple);
+}
+
+.tv__speaker {
+  position: absolute;
+  left: 4px;
+  bottom: 0;
+  width: 60px;
+  height: 150px;
+  /* Kare delikli hoparlör */
+  background:
+    repeating-linear-gradient(to right, var(--c-tv-panel) 0 4px, transparent 4px 10px),
+    repeating-linear-gradient(to bottom, var(--c-tv-panel) 0 4px, transparent 4px 10px),
+    var(--c-tv-d);
+  box-shadow: 0 0 0 3px var(--c-tv-d);
+}
+
+.tv__brand {
+  position: absolute;
+  left: 12px;
+  bottom: 6px;
+  font-size: 7px;
+  color: #a84868;
+}
+
+/* Marka yanındaki piksel kalp */
+.tv__heart {
+  position: absolute;
+  left: 92px;
+  bottom: 5px;
+}
+
+.tv__led {
+  position: absolute;
+  right: 14px;
+  bottom: 6px;
+  width: 8px;
+  height: 8px;
+  background: var(--c-green);
+  box-shadow: 0 0 8px 2px var(--c-green);
+}
+
+/* Anten */
+.tv__antenna {
+  --w: 46px;
+  --h: 10px;
+  --d: 30px;
+  --c: var(--c-tv-d);
+  /* İç içe kutu: üstteki --x/--z miras kalmasın */
+  --x: 0px;
+  --y: calc(var(--tv-h) / -2 - 5px);
+  --z: 0px;
+}
+
+.tv__rod {
+  position: absolute;
+  left: calc(50% - 2px);
+  bottom: 100%;
+  width: 4px;
+  height: 120px;
+  transform-origin: 50% 100%;
+  transform: rotateZ(-28deg);
+  transform-style: preserve-3d;
+  background: var(--c-grey);
+}
+
+.tv__rod::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: rotateY(90deg);
+  background: var(--c-grey-d);
+}
+
+.tv__rod--2 { transform: rotateZ(28deg); }
+
+/* Anten uçlarındaki renkli toplar */
+.tv__rod::before {
+  content: "";
+  position: absolute;
+  left: -4px;
+  top: -8px;
+  width: 12px;
+  height: 12px;
+  background: var(--c-red);
+}
+
+.tv__rod--2::before { background: var(--c-cyan); }
+
+/* ----- Ekran içeriği ----- */
+.screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 24px 26px 22px;
+  color: var(--c-phosphor);
+  /* Fosfor glow + hafif RGB kayması */
+  text-shadow:
+    -1px 0 rgba(255, 48, 48, .45),
+    1px 0 rgba(64, 120, 255, .45),
+    0 0 8px rgba(184, 248, 184, .55);
+}
+
+.is-booting .screen { visibility: hidden; }
+
+.screen__idle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 11px;
+  margin: auto;
+}
+
+.screen__idle-text {
+  margin: 0;
+  font-size: 14px;
+  animation: blink var(--t-blink) steps(1, end) infinite;
+}
+
+/* Mini oyun: tüm tuval tek bir düğme */
+.game {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.game:focus-visible {
+  outline: 2px solid var(--c-phosphor);
+  outline-offset: 3px;
+}
+
+.game canvas {
+  display: block;
+  width: 272px;
+  height: 144px;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  filter: drop-shadow(0 0 3px rgba(184, 248, 184, .45));
+}
+
+.screen__foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Oyunu oynamadan kasetleri getir */
+.screen__skip {
+  padding: 6px 8px 5px;
+  border: 1px solid currentColor;
+  background: none;
+  font: inherit;
+  font-size: 8px;
+  line-height: 1;
+  color: var(--c-cyan);
+  cursor: pointer;
+}
+
+.screen__skip:hover,
+.screen__skip:focus-visible {
+  background: var(--c-cyan);
+  color: var(--c-black);
+  outline: none;
+  text-shadow: none;
+}
+
+.screen__hint {
+  margin: 0;
+  font-size: 7px;
+}
+
+.screen__title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.4;
+  color: var(--c-yellow);
+  text-shadow:
+    -1px 0 rgba(255, 48, 48, .45),
+    1px 0 rgba(64, 120, 255, .45),
+    0 0 8px rgba(248, 184, 0, .6);
+}
+
+.screen__desc {
+  margin: 0;
+  font-size: 10px;
+  line-height: 1.8;
+}
+
+.ch { visibility: hidden; }
+.ch.is-on { visibility: visible; }
+
+/* Daktilo imleci */
+.ch.is-cur {
+  visibility: visible;
+  background: var(--c-phosphor);
+  color: transparent;
+  text-shadow: none;
+}
+
+.screen__link {
+  margin-top: auto;
+  align-self: flex-start;
+  font-size: 10px;
+  line-height: 1.6;
+  color: var(--c-cyan);
+  text-decoration: none;
+  visibility: hidden;
+  text-shadow:
+    -1px 0 rgba(255, 48, 48, .45),
+    1px 0 rgba(64, 120, 255, .45),
+    0 0 8px rgba(60, 188, 252, .7);
+}
+
+.screen__link.is-ready { visibility: visible; }
+
+a.screen__link { cursor: pointer; }
+
+a.screen__link:hover,
+a.screen__link:focus-visible {
+  color: var(--c-white);
+  outline: 2px solid var(--c-white);
+  outline-offset: 5px;
+}
+
+.screen__link--soon {
+  color: var(--c-grey-d);
+  cursor: default;
+}
+
+/* Yanıp sönen ok (font glifine güvenmemek için CSS üçgeni) */
+.screen__arrow {
+  display: inline-block;
+  width: 0;
+  height: 0;
+  margin-right: 8px;
+  border: 5px solid transparent;
+  border-left: 8px solid currentColor;
+  border-right: 0;
+  animation: blink var(--t-blink) steps(1, end) infinite;
+}
+
+/* ----- Ekran efekt katmanları ----- */
+.fx {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.fx--static {
+  opacity: .14;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+.is-playing .fx--static,
+.is-booting .fx--static { opacity: 0; }
+
+/* Düğme çevrilince kısa parazit */
+.tv__glass.is-zap .fx--static { opacity: .5; }
+
+/* Scanline + aşağı kayan parlak bant */
+.fx--scan {
+  overflow: hidden;
+  background: repeating-linear-gradient(to bottom, transparent 0 2px, rgba(0, 0, 0, .2) 2px 3px);
+}
+
+.fx--scan::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 26%;
+  background: linear-gradient(to bottom, transparent, rgba(255, 255, 255, .07), transparent);
+  animation: scanband var(--t-scanband) linear infinite;
+}
+
+/* Vignette + cam yansıması */
+.fx--vignette {
+  background:
+    linear-gradient(125deg, rgba(255, 255, 255, .09) 0%, transparent 26%),
+    radial-gradient(ellipse at center, transparent 56%, rgba(0, 0, 0, .55) 100%);
+}
+
+/* Açılış: beyaz çizgiden açılma */
+.fx--boot {
+  background: var(--c-white);
+  opacity: 0;
+}
+
+.is-booting .fx--boot { animation: boot var(--t-boot) steps(8, end) both; }
+
+/* ==========================================================
+   8. KONSOL
+   ========================================================== */
+.console {
+  --w: var(--con-w);
+  --h: var(--con-h);
+  --d: var(--con-d);
+  --c: var(--c-grey);
+  --y: calc(var(--con-h) / -2);
+  --z: var(--con-z);
+}
+
+.console__front {
+  background-image: linear-gradient(to bottom, transparent 0 14px, var(--c-dark) 14px 36px, transparent 36px);
+}
+
+.console__led {
+  position: absolute;
+  left: 16px;
+  top: 21px;
+  width: 8px;
+  height: 8px;
+  background: #501008;
+}
+
+.world.is-on .console__led {
+  background: var(--c-red);
+  box-shadow: 0 0 10px 3px var(--c-red);
+}
+
+.console__btn {
+  position: absolute;
+  top: 19px;
+  left: 36px;
+  width: 30px;
+  height: 12px;
+  background: var(--c-red);
+  box-shadow: inset 0 -3px 0 rgba(0, 0, 0, .35);
+}
+
+.console__btn--2 { left: 74px; }
+
+.console__port {
+  position: absolute;
+  top: 17px;
+  right: 60px;
+  width: 34px;
+  height: 16px;
+  background: var(--c-black);
+  box-shadow: inset 0 0 0 3px var(--c-grey-d);
+}
+
+.console__port--2 { right: 16px; }
+
+.console__slot {
+  position: absolute;
+  left: calc(50% - 41px);
+  top: calc(50% - 11px);
+  width: 82px;
+  height: 22px;
+  background: var(--c-black);
+  box-shadow: 0 0 0 4px var(--c-grey-d);
+}
+
+.console__vents {
+  position: absolute;
+  right: 14px;
+  top: 16px;
+  bottom: 16px;
+  width: 60px;
+  background: repeating-linear-gradient(to bottom, var(--c-grey-d) 0 4px, transparent 4px 12px);
+}
+
+.console__vents--2 {
+  right: auto;
+  left: 14px;
+}
+
+/* ==========================================================
+   9. RAF VE KASETLER
+   ========================================================== */
+.rack {
+  --w: calc(var(--n, 5) * (var(--cart-w) + var(--cart-gap)) + 14px);
+  --h: var(--rack-h);
+  --d: var(--rack-d);
+  --c: var(--c-dark);
+  --y: calc(var(--rack-h) / -2);
+  --z: var(--rack-z);
+}
+
+.cartridge {
+  --w: var(--cart-w);
+  --h: var(--cart-h);
+  --d: var(--cart-d);
+  --home-x: calc((var(--i) - (var(--n) - 1) / 2) * (var(--cart-w) + var(--cart-gap)));
+  --x: var(--home-x);
+  --y: var(--home-y);
+  --z: var(--rack-z);
+  /* --dur ve --steps her faz için JS tarafından verilir */
+  transition: transform var(--dur, 200ms) steps(var(--steps, 4), end);
+  cursor: pointer;
+}
+
+/* Takma fazları */
+.cartridge[data-phase="lifted"] { --y: calc(var(--home-y) - var(--lift)); }
+
+/* Henüz kazanılmamış kasetler: rafın yukarısında, görünmez ve odaklanamaz */
+.cartridge[data-phase="away"] {
+  --y: calc(var(--home-y) - 520px);
+  visibility: hidden;
+}
+
+.cartridge[data-phase="over"] {
+  --x: 0px;
+  --y: var(--over-y);
+  --z: var(--con-z);
+}
+
+.cartridge[data-phase="in"] {
+  --x: 0px;
+  --y: var(--slot-y);
+  --z: var(--con-z);
+}
+
+/* Hover'da gövde kalkınca imlecin altı boşalmasın diye sabit duran görünmez alan */
+.cartridge__hit {
+  position: absolute;
+  inset: -2px;
+  transform: translateZ(calc(var(--d) / 2 - 1px));
+}
+
+.cartridge__body {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  transition: transform var(--t-hover) steps(3, end);
+}
+
+.cartridge[data-phase="home"]:hover .cartridge__body,
+.cartridge[data-phase="home"]:has(.cartridge__btn:focus-visible) .cartridge__body {
+  transform: translateY(calc(-1 * var(--hover-lift)));
+}
+
+.cartridge:hover .face,
+.cartridge:has(.cartridge__btn:focus-visible) .face { filter: brightness(1.25); }
+
+.cartridge:hover .cartridge__btn,
+.cartridge:has(.cartridge__btn:focus-visible) .cartridge__btn {
+  box-shadow: inset 0 0 0 2px rgba(0, 0, 0, .35), 0 0 16px 2px var(--c);
+}
+
+.cartridge.is-settling .cartridge__body { animation: settle var(--t-settle) steps(4, end); }
+
+/* Ön yüz gerçek <button> */
+.cartridge__btn {
+  display: block;
+  padding: 0;
+  border: 0;
+  font: inherit;
+  color: var(--c-white);
+  cursor: pointer;
+}
+
+.cartridge__btn:focus-visible {
+  outline: 3px solid var(--c-white);
+  outline-offset: 3px;
+}
+
+/* Tutma olukları */
+.cartridge__grip {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  top: 4px;
+  height: 9px;
+  background: repeating-linear-gradient(to bottom, rgba(0, 0, 0, .45) 0 2px, transparent 2px 4px);
+}
+
+/* Etiket */
+.cartridge__label {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  top: 17px;
+  height: 42px;
+  padding: 4px;
+  background: var(--c-white);
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, .45);
+}
+
+/* LOGO ALANI: ileride logo buraya gelecek (bkz. JS'teki createCartridge yorumu).
+   Logoyu eklerken kesik çerçeveyi ve "LOGO" yazısını kaldırman yeterli. */
+.cartridge__logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  border: 2px dashed var(--c-grey-d);
+  font-size: 6px;
+  color: var(--c-grey-d);
+}
+
+.cartridge__name {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  bottom: 5px;
+  padding: 3px 0 2px;
+  overflow: hidden;
+  background: var(--c-black);
+  font-size: 7px;
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.cartridge__back-label {
+  position: absolute;
+  inset: 16px 10px 22px;
+  background: rgba(0, 0, 0, .3);
+}
+
+/* Konnektör çıkıntısı */
+.cartridge__pin {
+  --w: 46px;
+  --h: 8px;
+  --d: 8px;
+  --c: var(--c-grey-d);
+  --x: 0px;
+  --y: calc(var(--cart-h) / 2 + 4px);
+  --z: 0px;
+}
+
+.cartridge__pin .face--front,
+.cartridge__pin .face--back {
+  background-image: repeating-linear-gradient(to right, var(--c-yellow) 0 3px, transparent 3px 6px);
+}
+
+/* ==========================================================
+   10. ANİMASYONLAR
+   ========================================================== */
+@keyframes blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+/* Düzensiz, hafif titreme */
+@keyframes flicker {
+  0%   { opacity: 1;   filter: brightness(1); }
+  7%   { opacity: .96; filter: brightness(.97); }
+  9%   { opacity: 1;   filter: brightness(1.03); }
+  31%  { opacity: .98; filter: brightness(.99); }
+  33%  { opacity: 1;   filter: brightness(1); }
+  58%  { opacity: .95; filter: brightness(.96); }
+  60%  { opacity: 1;   filter: brightness(1.04); }
+  62%  { opacity: .98; filter: brightness(1); }
+  88%  { opacity: 1;   filter: brightness(1.02); }
+  91%  { opacity: .97; filter: brightness(.98); }
+  100% { opacity: 1;   filter: brightness(1); }
+}
+
+/* Tıklanan nesnelerin tepkisi (transform'a dokunmamak için translate/rotate) */
+@keyframes poke-hop {
+  0%   { translate: 0 0; }
+  25%  { translate: 0 -26px; }
+  50%  { translate: 0 0; }
+  70%  { translate: 0 -9px; }
+  85%, 100% { translate: 0 0; }
+}
+
+@keyframes poke-wiggle {
+  0%, 100% { rotate: 0deg; }
+  20% { rotate: -7deg; }
+  50% { rotate: 6deg; }
+  80% { rotate: -3deg; }
+}
+
+@keyframes scanband {
+  from { transform: translateY(-100%); }
+  to   { transform: translateY(400%); }
+}
+
+@keyframes boot {
+  0%   { opacity: 1;   transform: scale(0, .012); }
+  35%  { opacity: 1;   transform: scale(1, .012); }
+  75%  { opacity: .85; transform: scale(1, 1); }
+  100% { opacity: 0;   transform: scale(1, 1); }
+}
+
+/* Yuvaya oturma sarsıntısı */
+@keyframes settle {
+  0%   { transform: translateY(4px); }
+  35%  { transform: translateY(-3px); }
+  70%  { transform: translateY(2px); }
+  100% { transform: translateY(0); }
+}
+
+/* ==========================================================
+   11. AZALTILMIŞ HAREKET
+   ========================================================== */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --t-lift: 60ms;
+    --t-glide: 110ms;
+    --t-drop: 80ms;
+    --t-settle: 0ms;
+    --t-eject-up: 60ms;
+    --t-eject-glide: 110ms;
+    --t-eject-down: 60ms;
+    --t-boot: 80ms;
+    --t-hover: 0ms;
+    --t-deal: 80ms;
+    --t-deal-gap: 30ms;
+  }
+
+  .tv__glass,
+  .fx--scan::after,
+  .screen__idle-text,
+  .screen__arrow,
+  .cartridge.is-settling .cartridge__body { animation: none; }
+}
+</style>
+</head>
+<body>
+
+<header class="hud">
+  <p class="hud__stat"><span>TOPLAM</span><b id="stat-total" aria-label="Toplam ziyaretçi">------</b></p>
+  <div class="hud__title">
+    <h1 id="owner"></h1>
+    <p>PORTFOLYO</p>
+  </div>
+  <p class="hud__stat hud__stat--right"><span>BUGÜN</span><b id="stat-today" aria-label="Bugünkü ziyaretçi">----</b></p>
+  <!-- Bağlantılar JS'teki LINKS dizisinden üretilir -->
+  <nav class="hud__links" id="links" aria-label="Bağlantılar"></nav>
+</header>
+
+<main class="viewport" id="viewport">
+  <div class="camera" id="camera">
+    <div class="world" id="world">
+
+      <!-- Çocuk odası: duvarlar, zemin, halı. Oyuncaklar ve kollar JS'te eklenir -->
+      <div class="wall wall--back">
+        <i class="bunting" id="bunting"></i>
+        <div class="window pokeable">
+          <i class="window__stars"></i>
+          <i class="window__moon"></i>
+        </div>
+        <div class="poster poster--invader pokeable" id="poster-invader"></div>
+        <div class="poster poster--heart pokeable" id="poster-heart"><span>1UP</span></div>
+      </div>
+      <div class="wall wall--left"></div>
+      <div class="wall wall--right"></div>
+      <div class="floor"></div>
+      <div class="rug"></div>
+      <div class="floor-glow"></div>
+
+      <!-- TV sehpası -->
+      <div class="box stand">
+        <div class="face face--front"></div>
+        <div class="face face--back"></div>
+        <div class="face face--left"></div>
+        <div class="face face--right"></div>
+        <div class="face face--top"></div>
+      </div>
+
+      <!-- Konsol -->
+      <div class="box console">
+        <div class="face face--front console__front">
+          <i class="console__led"></i>
+          <i class="console__btn"></i>
+          <i class="console__btn console__btn--2"></i>
+          <i class="console__port"></i>
+          <i class="console__port console__port--2"></i>
+        </div>
+        <div class="face face--back"></div>
+        <div class="face face--left"></div>
+        <div class="face face--right"></div>
+        <div class="face face--top">
+          <i class="console__vents console__vents--2"></i>
+          <i class="console__slot"></i>
+          <i class="console__vents"></i>
+        </div>
+      </div>
+
+      <!-- Kaset rafı; kasetler JS ile PROJECTS dizisinden üretilip buraya eklenir -->
+      <div class="box rack" id="rack">
+        <div class="face face--front"></div>
+        <div class="face face--back"></div>
+        <div class="face face--left"></div>
+        <div class="face face--right"></div>
+        <div class="face face--top"></div>
+      </div>
+
+      <!-- CRT TV -->
+      <div class="box tv" id="tv">
+        <div class="face face--front tv__front">
+          <div class="tv__bezel">
+            <div class="tv__glass" id="glass">
+              <div class="screen" id="screen" aria-live="polite"></div>
+              <canvas class="fx fx--static" id="static" width="82" height="62" aria-hidden="true"></canvas>
+              <div class="fx fx--scan"></div>
+              <div class="fx fx--vignette"></div>
+              <div class="fx fx--boot"></div>
+            </div>
+          </div>
+          <div class="tv__panel" aria-hidden="true">
+            <i class="tv__knob"></i>
+            <i class="tv__knob tv__knob--2"></i>
+            <i class="tv__speaker"></i>
+          </div>
+          <span class="tv__brand" aria-hidden="true">PİKSEL-TV</span>
+          <span class="tv__heart" id="tv-heart" aria-hidden="true"></span>
+          <i class="tv__led"></i>
+        </div>
+        <div class="face face--back"></div>
+        <div class="face face--left"></div>
+        <div class="face face--right"></div>
+        <div class="face face--top"></div>
+        <div class="box tv__antenna">
+          <div class="face face--front"></div>
+          <div class="face face--back"></div>
+          <div class="face face--left"></div>
+          <div class="face face--right"></div>
+          <div class="face face--top"></div>
+          <i class="tv__rod"></i>
+          <i class="tv__rod tv__rod--2"></i>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</main>
+
+<p class="hint" id="hint">SÜRÜKLE: DÖNDÜR · TEKER: ZOOM · R: SIFIRLA</p>
+
+<script>
+(() => {
+  'use strict';
+
+  /* ==========================================================
+     1. VERİ: yalnızca burayı düzenlemen yeterli
+     ========================================================== */
+  const OWNER_NAME = 'Berk Çinar';
+
+  // Üstteki bağlantılar. url boşsa düğme soluk ve tıklanamaz görünür.
+  // CV için dosyayı index.html'in yanına koyup adını yazman yeterli (ör. 'cv.pdf').
+  // icon: duvara asılan çerçevedeki piksel logo (aşağıdaki ICONS içinde tanımlı).
+  const LINKS = [
+    { label: 'GITHUB', url: 'https://github.com/berkcinar', icon: 'github' },
+    { label: 'LINKEDIN', url: 'https://www.linkedin.com/in/berkcinar01', icon: 'linkedin' },
+    { label: 'MEDIUM', url: 'https://medium.com/@berkcinar01', icon: 'medium' },
+    { label: 'CV', url: 'Berk_Cinar_CV_EN_Photo.pdf', cv: true },
+  ];
+
+  // Ziyaretçi sayacı: sayılar ücretsiz Abacus servisinde tutulur
+  // (https://abacus.jasoncameron.dev). namespace'i değiştirirsen sayaç sıfırdan başlar.
+  // Her tarayıcı toplamda bir kez, günlükte günde bir kez sayılır.
+  const COUNTER = {
+    enabled: true,
+    api: 'https://abacus.jasoncameron.dev',
+    namespace: 'berkcinar-portfolio',
+    timeZone: 'Europe/Istanbul',   // "bugün" hangi saat dilimine göre
+  };
+
+  // shortTitle kasetin üstüne yazılır; en fazla 8 karakter sığar.
+  // url boşsa TV'de "YAKINDA" yazar ve tıklanamaz.
+  const PROJECTS = [
+    {
+      id: 'blex-ai',
+      title: 'BLEX AI',
+      shortTitle: 'BLEX AI',
+      description: 'Fotoğraflarını yapay zekâ ile sanat eserine dönüştür. Bir görsel yükle, profesyonel sanatsal stilleri saniyeler içinde uygula.',
+      url: 'https://blexxai.com',
+      color: '#d82800',
+    },
+    {
+      id: 'cloudarchitect-sim',
+      title: 'CloudArchitect-Sim',
+      shortTitle: 'CLOUDSIM',
+      description: 'Sürükle-bırak tuval üzerinde sistem tasarımı mülakatı pratiği. Mimarini kur, yapay zekâ mülakatçı değerlendirsin.',
+      url: 'https://systemdesignsimulation.com/',
+      color: '#0058f8',
+    },
+    { id: 'proje-3', title: 'PROJE 3', shortTitle: 'PROJE 3', description: 'Çok yakında...', url: '', color: '#00a800' },
+    { id: 'proje-4', title: 'PROJE 4', shortTitle: 'PROJE 4', description: 'Çok yakında...', url: '', color: '#f8b800' },
+    { id: 'proje-5', title: 'PROJE 5', shortTitle: 'PROJE 5', description: 'Çok yakında...', url: '', color: '#6844fc' },
+  ];
+
+  /* ==========================================================
+     2. AYARLAR
+     ========================================================== */
+  const CAM = {
+    yaw: -10, pitch: 18, zoom: 1,         // başlangıç / sıfırlama görünümü
+    yawMax: 50, pitchMin: -5, pitchMax: 35,
+    zoomMin: 0.6, zoomMax: 2.2,
+    dragSpeed: 0.28,                       // derece / piksel
+    keyStep: 6, keyZoom: 1.15,
+    wheelSpeed: 0.0012,
+    smooth: 9,                             // lerp hızı (büyük = daha az atalet)
+    dragThreshold: 5,                      // piksel; üstü sürükleme sayılır
+    idleDelay: 2500, swayYaw: 3, swayPitch: 1,
+  };
+
+  // Sahnenin ölçeklenmeden önceki tasarım boyutu
+  const DESIGN = { width: 570, height: 740, pivot: 0.53 };
+  const STATIC_INTERVAL = 90;
+  // Bölüm: bu kadar engeli tek seferde aşınca kasetler rafa gelir
+  const LEVEL_GOAL = PROJECTS.length;
+
+  // Mini oyun (boyutlar tuvalin düşük çözünürlüklü pikselleri, hızlar piksel/sn)
+  const GAME = {
+    w: 136, h: 72, ground: 60,
+    playerX: 18, playerSize: 8,
+    gravity: 560, jump: 200,
+    speed: 64, speedMax: 150, speedPerPoint: 0.25,
+    gapMin: 58, gapMax: 112,
+    restartDelay: 400,
+  };
+
+  /* ==========================================================
+     3. DURUM (tek kaynak)
+     ========================================================== */
+  const state = {
+    unlocked: false,       // kasetler kazanıldı mı (oyun bitirildi ya da geçildi)
+    inserted: null,        // takılı kasetin id'si
+    busy: false,           // animasyon kilidi
+    queued: null,          // animasyon sürerken gelen son istek
+    tvToken: 0,            // eski daktilo/açılış işlerini iptal etmek için
+    cam: {
+      yaw: CAM.yaw, pitch: CAM.pitch, zoom: CAM.zoom,       // anlık
+      tYaw: CAM.yaw, tPitch: CAM.pitch, tZoom: CAM.zoom,    // hedef
+      fit: 1, sway: 0, lastInput: -Infinity,
+    },
+    pointers: new Map(),
+    dragging: false,
+    suppressClick: false,
+    pinchDist: 0,
+    game: {
+      mode: 'off',         // off | ready | playing | over
+      ctx: null,
+      alt: 0, vy: 0,       // oyuncunun yerden yüksekliği ve dikey hızı
+      obstacles: [], spawnIn: 0,
+      passed: 0,           // bu elde aşılan engel sayısı
+      score: 0, best: 0,
+      last: 0, overAt: 0, raf: 0,
+    },
+  };
+
+  /* ==========================================================
+     4. DOM VE YARDIMCILAR
+     ========================================================== */
+  const $ = (id) => document.getElementById(id);
+  const root = document.documentElement;
+  const viewport = $('viewport');
+  const camera = $('camera');
+  const world = $('world');
+  const glass = $('glass');
+  const screen = $('screen');
+  const staticCanvas = $('static');
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const carts = new Map();   // id -> { el, btn, project }
+
+  const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
+  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  // :root'taki custom property'yi sayı olarak okur ("200ms" -> 200, "90px" -> 90)
+  const cssNum = (name) => parseFloat(getComputedStyle(root).getPropertyValue(name)) || 0;
+
+  // localStorage kapalı/engelli olabilir; o durumda sessizce vazgeç
+  const store = {
+    get(key) { try { return localStorage.getItem(`portfolyo:${key}`); } catch (_) { return null; } },
+    set(key, value) { try { localStorage.setItem(`portfolyo:${key}`, value); } catch (_) { /* yok say */ } },
+  };
+
+  function el(tag, className, text) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text != null) node.textContent = text;
+    return node;
+  }
+
+  function faces(names) {
+    return names.map((name) => el('div', `face face--${name}`));
+  }
+
+  const ALL_FACES = ['front', 'back', 'left', 'right', 'top', 'bottom'];
+
+  // Kutu: boyut (w,h,d), merkez konumu (x,y,z; y yukarı doğru eksi), renk (c).
+  // skip: görünmeyen yüzleri üretmemek için.
+  function box3d({ w, h, d, x = 0, y = 0, z = 0, c, cls = '', skip = [] }) {
+    const box = el('div', `box ${cls}`.trim());
+    const vars = { w, h, d, x, y, z };
+    Object.keys(vars).forEach((key) => box.style.setProperty(`--${key}`, `${vars[key]}px`));
+    box.style.setProperty('--c', c);
+    box.append(...faces(ALL_FACES.filter((name) => !skip.includes(name))));
+    return box;
+  }
+
+  // Kutulardan oluşan figür: tabanı (x,y,z) noktasında, Y ekseninde döndürülmüş
+  function group(cls, { x = 0, y = 0, z = 0, rot = 0, scale = 1 }, parts) {
+    const node = el('div', `group ${cls}`);
+    node.style.transform = `translate3d(${x}px,${y}px,${z}px) rotateY(${rot}deg) scale3d(${scale},${scale},${scale})`;
+    node.append(...parts.map(box3d));
+    return node;
+  }
+
+  // Piksel çizim: 'X' dolu, '.' boş. Görsel dosyası yerine box-shadow kullanır.
+  function pixelArt(rows, size, color, cls = '') {
+    const wrap = el('span', `px ${cls}`.trim());
+    wrap.style.width = `${rows[0].length * size}px`;
+    wrap.style.height = `${rows.length * size}px`;
+    const shadows = [];
+    rows.forEach((row, r) => [...row].forEach((ch, col) => {
+      if (ch === 'X') shadows.push(`${(col + 1) * size}px ${(r + 1) * size}px ${color}`);
+    }));
+    const dot = el('i');
+    dot.style.cssText = `left:${-size}px;top:${-size}px;width:${size}px;height:${size}px;box-shadow:${shadows.join(',')}`;
+    wrap.append(dot);
+    return wrap;
+  }
+
+  // Konuşma balonu: figürün tepesinde (y) durur, tıklanınca görünür
+  function bubble(text, y, z = 0) {
+    const node = el('span', 'bubble', text);
+    node.setAttribute('aria-hidden', 'true');
+    node.style.top = `${y}px`;
+    node.style.transform = `translate3d(-50%, -100%, ${z}px)`;
+    return node;
+  }
+
+  /* ==========================================================
+     5a. ODA: oyuncaklar, oyun kolları, duvar süsleri
+     ========================================================== */
+  const ART = {
+    heart: ['.XX.XX.', 'XXXXXXX', 'XXXXXXX', '.XXXXX.', '..XXX..', '...X...'],
+    invader: [
+      '..X.....X..', '...X...X...', '..XXXXXXX..', '.XX.XXX.XX.',
+      'XXXXXXXXXXX', 'X.XXXXXXX.X', 'X.X.....X.X', '...XX.XX...',
+    ],
+  };
+
+  // Duvar çerçevelerindeki logolar: piksel çizim, zemin/çizim rengi, piksel boyutu
+  const ICONS = {
+    github: {
+      bg: '#1c1c2c', fg: '#fcfcfc', px: 6,
+      art: [
+        '.X.......X.', '.XX.....XX.', '.XXXXXXXXX.', 'XXXXXXXXXXX', 'XX.XXXXX.XX',
+        'XXXXXXXXXXX', '.XXXXXXXXX.', '..XXX.XXX..', 'X..XX.XX...', '.XXXX.XX...',
+      ],
+    },
+    linkedin: {
+      bg: '#0058f8', fg: '#fcfcfc', px: 6,
+      art: [
+        'XX.......', 'XX.......', '.........', 'XX.XXXX..', 'XX.XX.XX.',
+        'XX.XX.XX.', 'XX.XX.XX.', 'XX.XX.XX.', 'XX.XX.XX.',
+      ],
+    },
+    medium: {
+      bg: '#000000', fg: '#fcfcfc', px: 5,
+      art: [
+        '.XXXX...XX..X', 'XXXXXX.XXX..X', 'XXXXXX.XXX..X', 'XXXXXX.XXX..X',
+        'XXXXXX.XXX..X', 'XXXXXX.XXX..X', '.XXXX...XX..X',
+      ],
+    },
+  };
+
+  // Duvara asılı, tıklanınca açılan logo çerçevesi
+  function createWallLink({ label, url, icon }, index) {
+    const { bg, fg, px, art } = ICONS[icon];
+    const frame = el(url ? 'a' : 'div', `social${url ? '' : ' pokeable'}`);
+    frame.style.left = `${1000 + index * 110}px`;
+    frame.style.setProperty('--bg', bg);
+    frame.style.setProperty('--fg', fg);
+    if (url) {
+      frame.href = url;
+      frame.target = '_blank';
+      frame.rel = 'noopener noreferrer';
+      frame.draggable = false;
+    }
+    const logo = pixelArt(art, px, fg);
+    logo.setAttribute('aria-hidden', 'true');
+    frame.append(logo, el('span', '', label));
+    return frame;
+  }
+
+  function buildRoom() {
+    const WHITE = '#fcfcfc', BLACK = '#000000', RED = '#d82800';
+    const GREEN = '#58d854', GREEN_D = '#00a800', LIME = '#b8f818', GREY = '#bcbcbc';
+    const tvTop = -(cssNum('--stand-h') + cssNum('--tv-h'));
+    const tvFront = cssNum('--tv-z') + cssNum('--tv-d') / 2;
+    const side = (x, part) => [{ ...part, x: -x }, { ...part, x }];
+
+    // Kermit peluş: yerde, TV'nin solunda bacaklarını uzatmış oturuyor
+    const kermit = group('kermit pokeable', { x: -312, z: 35, rot: 24, scale: 1.8 }, [
+      { w: 34, h: 38, d: 24, y: -19, c: GREEN, skip: ['bottom'] },
+      { w: 46, h: 6, d: 32, y: -39, c: LIME },
+      { w: 52, h: 26, d: 34, y: -55, z: 3, c: GREEN, cls: 'kermit__head' },
+      ...side(13, { w: 14, h: 14, d: 12, y: -73, z: 6, c: WHITE, cls: 'kermit__eye', skip: ['bottom'] }),
+      ...side(21, { w: 8, h: 30, d: 8, y: -22, c: GREEN }),
+      ...side(9, { w: 10, h: 8, d: 44, y: -4, z: 32, c: GREEN, skip: ['bottom'] }),   // uzatılmış bacaklar
+      ...side(9, { w: 14, h: 12, d: 6, y: -6, z: 57, c: GREEN_D, skip: ['bottom'] }), // ayaklar
+    ]);
+    kermit.append(bubble('VRAK!', -88, 10));
+
+    // Snoopy: kulübesinin çatısında oturuyor (kulübe grubunun içine eklenir)
+    const snoopy = group('snoopy pokeable', { y: -122, z: -6, scale: 1.4 }, [
+      { w: 26, h: 30, d: 22, y: -15, c: WHITE, skip: ['bottom'] },                    // gövde
+      { w: 16, h: 12, d: 2, y: -19, z: -12, c: BLACK },                               // sırt lekesi
+      { w: 28, h: 4, d: 24, y: -32, c: RED },                                         // tasma
+      { w: 5, h: 5, d: 2, y: -28, z: 12, c: '#f8b800' },                              // künye
+      { w: 32, h: 26, d: 26, y: -47, z: 1, c: WHITE, cls: 'snoopy__head' },           // kafa
+      { w: 22, h: 16, d: 20, y: -43, z: 22, c: WHITE, cls: 'snoopy__snout', skip: ['back'] },
+      { w: 10, h: 8, d: 6, y: -50, z: 33, c: BLACK },                                 // burun
+      ...side(19, { w: 6, h: 26, d: 14, y: -44, z: -2, c: BLACK }),                   // kulaklar
+      ...side(15, { w: 6, h: 18, d: 8, y: -20, z: 5, c: WHITE }),                     // kollar
+      ...side(15, { w: 7, h: 5, d: 9, y: -9, z: 8, c: WHITE }),                       // eller
+      ...side(13, { w: 9, h: 12, d: 16, y: -6, z: 1, c: WHITE, skip: ['bottom'] }),   // arka bacaklar
+      ...side(9, { w: 11, h: 7, d: 20, y: -3.5, z: 16, c: WHITE, cls: 'snoopy__foot', skip: ['bottom'] }),
+      { w: 5, h: 5, d: 8, y: -10, z: -14, c: WHITE },                                 // kuyruk
+      { w: 5, h: 5, d: 4, y: -14, z: -19, c: BLACK },                                 // kuyruk ucu
+    ]);
+    snoopy.append(bubble('HAV!', -66, 12));
+
+    // Woodstock: çatıda, Snoopy'nin önünde
+    const YELLOW = '#f8d800', ORANGE = '#f87800';
+    const woodstock = group('woodstock pokeable', { x: 4, y: -122, z: 46, rot: 18, scale: 1.3 }, [
+      { w: 10, h: 10, d: 10, y: -8, c: YELLOW },
+      { w: 12, h: 10, d: 12, y: -18, c: YELLOW, cls: 'woodstock__head' },
+      { w: 5, h: 3, d: 5, y: -17, z: 8, c: ORANGE },
+      { w: 2, h: 6, d: 2, x: -2, y: -26, z: -2, c: YELLOW },
+      { w: 2, h: 5, d: 2, x: 2, y: -25.5, z: -3, c: YELLOW },
+      ...side(3, { w: 2, h: 3, d: 2, y: -1.5, c: ORANGE, skip: ['bottom'] }),
+    ]);
+    woodstock.append(bubble('CİK!', -32, 8));
+
+    // Snoopy'nin kırmızı kulübesi: arkada sağda, basamaklı çatılı
+    const ROOF = '#a81000';
+    const doghouse = group('doghouse pokeable', { x: 395, z: -130, rot: -16 }, [
+      { w: 100, h: 70, d: 116, y: -35, c: RED, cls: 'doghouse__body', skip: ['bottom'] },
+      { w: 114, h: 14, d: 130, y: -77, c: ROOF, skip: ['bottom'] },
+      { w: 88, h: 14, d: 130, y: -91, c: ROOF, skip: ['bottom'] },
+      { w: 60, h: 14, d: 130, y: -105, c: ROOF, skip: ['bottom'] },
+      { w: 32, h: 10, d: 130, y: -117, c: ROOF, skip: ['bottom'] },
+    ]);
+    doghouse.querySelector('.doghouse__body > .face--front').textContent = 'SNOOPY';
+    doghouse.append(snoopy, woodstock);
+
+    // Kırmızı çocuk sandalyesi: arkada solda
+    const chair = group('chair pokeable', { x: -500, z: -150, rot: 28, scale: 1.75 }, [
+      { w: 60, h: 8, d: 56, y: -44, c: RED },                                          // oturak
+      ...side(26, { w: 8, h: 40, d: 8, y: -20, z: 24, c: ROOF, skip: ['bottom'] }),    // ön ayaklar
+      ...side(26, { w: 8, h: 104, d: 8, y: -52, z: -24, c: ROOF, skip: ['bottom'] }),  // arka ayak + sırt direği
+      { w: 44, h: 14, d: 6, y: -95, z: -24, c: RED },                                  // sırt çıtaları
+      { w: 44, h: 10, d: 6, y: -70, z: -24, c: RED },
+    ]);
+
+    // Futbol topu: arkada, kulübenin yanında (köşeli, siyah yamalı)
+    const patch = { c: BLACK };
+    const ball = group('ball pokeable', { x: 545, z: -150, rot: 20, scale: 1.3 }, [
+      { w: 34, h: 34, d: 34, y: -23, c: WHITE },
+      ...side(20, { w: 6, h: 20, d: 20, y: -23, ...patch }),
+      { w: 20, h: 6, d: 20, y: -43, ...patch },
+      { w: 20, h: 6, d: 20, y: -3, ...patch, skip: ['bottom'] },
+      { w: 20, h: 20, d: 6, y: -23, z: 20, ...patch },
+      { w: 20, h: 20, d: 6, y: -23, z: -20, ...patch },
+    ]);
+
+    // İki oyun kolu: kasetlerin önünde, kabloları rafın altından konsola uzanıyor
+    const pad = (dir) => group('controller pokeable', { x: 120 * dir, z: 305, rot: 15 * dir }, [
+      { w: 76, h: 12, d: 38, y: -6, c: GREY, cls: 'pad', skip: ['bottom'] },
+      { w: 4, h: 3, d: 110, y: -1.5, z: -74, c: '#1c1c2c', skip: ['bottom'] },
+    ]);
+
+    // Harfli küpler (arka köşelerde)
+    const blocks = (x, z, rot, defs) => {
+      const node = group('blocks pokeable', { x, z, rot }, defs.map(([bx, by, c]) => (
+        { w: 44, h: 44, d: 44, x: bx, y: by, c, cls: 'block', skip: by === -22 ? ['bottom'] : [] }
+      )));
+      [...node.children].forEach((b, i) => { b.querySelector('.face--front').textContent = defs[i][3]; });
+      return node;
+    };
+
+    $('rack').before(
+      kermit, doghouse, chair, ball, pad(-1), pad(1),
+      blocks(-600, 110, 18, [[-26, -22, RED, 'A'], [26, -22, '#0058f8', 'B'], [0, -66, '#f8b800', 'C']]),
+      blocks(600, 30, -24, [[0, -22, '#6844fc', '1'], [4, -66, GREEN_D, '2']]),
+    );
+
+    // Duvardaki GitHub / LinkedIn / Medium çerçeveleri (üstteki düğmelerle aynı adresler)
+    document.querySelector('.wall--back').append(
+      ...LINKS.filter((link) => ICONS[link.icon]).map(createWallLink),
+    );
+
+    // Duvardaki CV kâğıdı (üstteki CV düğmesiyle aynı adres)
+    const cv = LINKS.find((link) => link.cv);
+    if (cv) {
+      const paper = el(cv.url ? 'a' : 'div', `cv-paper${cv.url ? '' : ' pokeable'}`, 'CV');
+      if (cv.url) {
+        paper.href = cv.url;
+        paper.target = '_blank';
+        paper.rel = 'noopener noreferrer';
+        paper.draggable = false;
+        paper.setAttribute('aria-label', 'CV dosyasını aç');
+      }
+      paper.append(el('span', 'cv-paper__note', cv.url ? 'TIKLA' : 'YAKINDA'));
+      document.querySelector('.wall--back').append(paper);
+    }
+
+    // Duvar süsleri ve TV'deki kalp
+    $('poster-invader').append(pixelArt(ART.invader, 8, 'var(--c-green)'));
+    $('poster-heart').prepend(pixelArt(ART.heart, 8, 'var(--c-red)'));
+    $('tv-heart').append(pixelArt(ART.heart, 2, 'var(--c-red)'));
+
+    // Bayrak süsü: 70px'lik üçgenlerden zikzak
+    const bunting = $('bunting');
+    const flags = Math.ceil(cssNum('--room-w') / 70);
+    const points = ['0 0'];
+    for (let i = 0; i < flags; i++) points.push(`${i * 70 + 35}px 100%`, `${(i + 1) * 70}px 0`);
+    bunting.style.clipPath = `polygon(${points.join(',')})`;
+  }
+
+  /* ==========================================================
+     5. KASETLERİ ÜRET
+     ========================================================== */
+  function createCartridge(project, index) {
+    const cart = el('div', 'box cartridge');
+    cart.dataset.phase = state.unlocked ? 'home' : 'away';
+    cart.style.setProperty('--i', index);
+    cart.style.setProperty('--c', project.color);
+
+    const body = el('div', 'cartridge__body');
+
+    const btn = el('button', 'face face--front cartridge__btn');
+    btn.type = 'button';
+
+    const label = el('span', 'cartridge__label');
+    // LOGO ALANI: logo eklemek için bu elemanın içeriğini değiştir
+    // (ör. satır içi <svg> ya da CSS ile çizilmiş bir şekil) ve
+    // .cartridge__logo'daki kesik çerçeveyi kaldır.
+    label.append(el('span', 'cartridge__logo', 'LOGO'));
+    btn.append(el('span', 'cartridge__grip'), label, el('span', 'cartridge__name', project.shortTitle));
+
+    const [back, ...sides] = faces(['back', 'left', 'right', 'top', 'bottom']);
+    back.append(el('span', 'cartridge__back-label'));
+
+    const pin = el('div', 'box cartridge__pin');
+    pin.append(...faces(['front', 'back', 'left', 'right', 'bottom']));
+
+    body.append(btn, back, ...sides, pin);
+    cart.append(el('div', 'cartridge__hit'), body);
+    cart.addEventListener('click', () => requestToggle(project.id));
+
+    carts.set(project.id, { el: cart, btn, project });
+    return cart;
+  }
+
+  function createLink({ label, url, cv }) {
+    const cls = `hud__link${cv ? ' hud__link--cv' : ''}`;
+    if (!url) {
+      const empty = el('span', `${cls} is-empty`, label);
+      empty.setAttribute('aria-disabled', 'true');
+      empty.title = 'Yakında';
+      return empty;
+    }
+    const link = el('a', cls, label);
+    link.href = url;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    return link;
+  }
+
+  function buildScene() {
+    state.unlocked = store.get('unlocked') === '1';
+    $('owner').textContent = OWNER_NAME;
+    document.title = `${OWNER_NAME} · PORTFOLYO`;
+    $('links').append(...LINKS.map(createLink));
+    world.style.setProperty('--n', PROJECTS.length);
+    // Kasetler DOM'da TV'den önce: Tab sırası kasetler -> ekrandaki link
+    $('tv').before(...PROJECTS.map(createCartridge));
+    buildRoom();
+    syncUI();
+    renderIdle();
+  }
+
+  // Durumdan türeyen her şeyi (LED, ışık, aria) tek yerden günceller
+  function syncUI() {
+    world.classList.toggle('is-on', state.inserted !== null);
+    carts.forEach(({ btn, project }, id) => {
+      const isIn = state.inserted === id;
+      btn.setAttribute('aria-pressed', String(isIn));
+      btn.setAttribute('aria-label', `${project.title} kasetini ${isIn ? 'çıkar' : 'tak'}`);
+    });
+  }
+
+  /* ==========================================================
+     6. KASET TAKMA / ÇIKARMA
+     ========================================================== */
+  // Animasyon sürerken gelen tıklamalardan yalnızca sonuncusu sıraya alınır.
+  async function requestToggle(id) {
+    if (!state.unlocked) return;
+    if (state.busy) {
+      state.queued = id;
+      return;
+    }
+    state.busy = true;
+    try {
+      let next = id;
+      while (next !== null) {
+        state.queued = null;
+        await toggle(next);
+        next = state.queued;
+      }
+    } finally {
+      state.busy = false;
+      state.queued = null;
+    }
+  }
+
+  // Bölüm bitince (ya da "GEÇ" ile) kasetler sırayla yukarıdan rafa iner.
+  // Bir kez kazanılınca tarayıcıda hatırlanır; sonraki ziyarette hazır gelir.
+  async function unlockCartridges() {
+    if (state.unlocked) return;
+    state.unlocked = true;
+    store.set('unlocked', '1');
+    const text = screen.querySelector('.screen__idle-text');
+    if (text) text.textContent = 'KASET TAK';
+    screen.querySelector('.screen__skip')?.remove();
+    state.busy = true;
+    try {
+      for (const { el: cart } of carts.values()) {
+        moveCart(cart, 'home', '--t-deal', 6);
+        await wait(cssNum('--t-deal-gap'));
+      }
+      await wait(cssNum('--t-deal'));
+    } finally {
+      state.busy = false;
+    }
+  }
+
+  async function toggle(id) {
+    if (state.inserted === id) {
+      await eject(id);
+      return;
+    }
+    if (state.inserted !== null) await eject(state.inserted);
+    await insert(id);
+  }
+
+  function moveCart(cart, phase, durationVar, steps) {
+    const ms = cssNum(durationVar);
+    cart.style.setProperty('--dur', `${ms}ms`);
+    cart.style.setProperty('--steps', steps);
+    cart.dataset.phase = phase;
+    return wait(ms);
+  }
+
+  async function insert(id) {
+    const { el: cart, project } = carts.get(id);
+    await moveCart(cart, 'lifted', '--t-lift', 4);     // 1. yukarı kalk
+    await moveCart(cart, 'over', '--t-glide', 8);      // 2. yuvanın üstüne süzül
+    await moveCart(cart, 'in', '--t-drop', 5);         // 3. yuvaya in
+    cart.classList.add('is-settling');                 //    oturma sarsıntısı
+    state.inserted = id;
+    syncUI();                                          // 4. LED yanar
+    await wait(cssNum('--t-settle'));
+    cart.classList.remove('is-settling');
+    await tvOn(project);                               // 4-5. açılış + içerik
+  }
+
+  async function eject(id) {
+    const { el: cart } = carts.get(id);
+    tvOff();
+    state.inserted = null;
+    syncUI();
+    await moveCart(cart, 'over', '--t-eject-up', 4);
+    await moveCart(cart, 'lifted', '--t-eject-glide', 7);
+    await moveCart(cart, 'home', '--t-eject-down', 4);
+  }
+
+  /* ==========================================================
+     7. TV EKRANI
+     ========================================================== */
+  function renderIdle() {
+    const idle = el('div', 'screen__idle');
+    const play = el('button', 'game');
+    play.type = 'button';
+    play.setAttribute('aria-label', 'Mini oyun: başlatmak ve zıplamak için bas');
+    const canvas = el('canvas');
+    canvas.width = GAME.w;
+    canvas.height = GAME.h;
+    play.append(canvas);
+    // Oyun sırasında basar basmaz zıpla; başlatma/yeniden başlatma click ile
+    // (sürükleme click'i yutulduğu için kamerayı çevirmek oyunu başlatmaz).
+    // detail === 0: klavyeyle (Enter/Boşluk) tetiklenen click.
+    play.addEventListener('pointerdown', () => { if (state.game.mode === 'playing') gameInput(); });
+    play.addEventListener('click', (e) => { if (state.game.mode !== 'playing' || e.detail === 0) gameInput(); });
+    const foot = el('div', 'screen__foot');
+    foot.append(el('p', 'screen__hint', 'ZIPLA: TIKLA / BOŞLUK'));
+    if (!state.unlocked) {
+      const skip = el('button', 'screen__skip', 'GEÇ');
+      skip.type = 'button';
+      skip.setAttribute('aria-label', 'Oyunu geç ve kasetleri getir');
+      skip.addEventListener('click', unlockCartridges);
+      foot.append(skip);
+    }
+    idle.append(
+      el('p', 'screen__idle-text', state.unlocked ? 'KASET TAK' : 'KASETLERİ KAZAN!'),
+      play,
+      foot,
+    );
+    screen.replaceChildren(idle);
+    mountGame(canvas);
+    startStatic();
+  }
+
+  async function tvOn(project) {
+    const token = ++state.tvToken;
+    stopGame();
+    stopStatic();
+    screen.replaceChildren();
+    glass.classList.add('is-booting');
+    await wait(cssNum('--t-boot'));
+    if (token !== state.tvToken) return;
+    glass.classList.remove('is-booting');
+    glass.classList.add('is-playing');
+    renderProject(project, token);
+  }
+
+  function tvOff() {
+    state.tvToken++;
+    glass.classList.remove('is-booting', 'is-playing');
+    renderIdle();
+  }
+
+  function renderProject(project, token) {
+    const title = el('h2', 'screen__title', project.title);
+
+    // Ekran okuyucu tam metni bir kez okur; harf harf yazılan kopya gizlidir.
+    const desc = el('p', 'screen__desc');
+    const typed = el('span');
+    typed.setAttribute('aria-hidden', 'true');
+    const chars = [...project.description].map((ch) => el('span', 'ch', ch));
+    typed.append(...chars);
+    desc.append(el('span', 'sr-only', project.description), typed);
+
+    let link;
+    if (project.url) {
+      link = el('a', 'screen__link');
+      link.href = project.url;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.draggable = false;
+      const arrow = el('span', 'screen__arrow');
+      arrow.setAttribute('aria-hidden', 'true');
+      link.append(arrow, 'PROJEYE GİT');
+    } else {
+      link = el('span', 'screen__link screen__link--soon', 'YAKINDA');
+      link.setAttribute('aria-disabled', 'true');
+    }
+
+    screen.replaceChildren(title, desc, link);
+    typewrite(chars, token, () => link.classList.add('is-ready'));
+  }
+
+  function typewrite(chars, token, done) {
+    const perChar = cssNum('--t-type');
+    if (reducedMotion.matches || perChar <= 0) {
+      chars.forEach((ch) => ch.classList.add('is-on'));
+      done();
+      return;
+    }
+    const start = performance.now();
+    let shown = 0;
+    const step = (now) => {
+      if (token !== state.tvToken) return;
+      const target = Math.min(chars.length, Math.floor((now - start) / perChar));
+      for (; shown < target; shown++) {
+        chars[shown].classList.remove('is-cur');
+        chars[shown].classList.add('is-on');
+      }
+      if (shown < chars.length) {
+        chars[shown].classList.add('is-cur');
+        requestAnimationFrame(step);
+      } else {
+        done();
+      }
+    };
+    requestAnimationFrame(step);
+  }
+
+  /* ----- Mini oyun: boş ekranda engellerin üstünden zıpla ----- */
+  function mountGame(canvas) {
+    const g = state.game;
+    cancelAnimationFrame(g.raf);
+    g.ctx = canvas.getContext('2d');
+    g.best = Number(store.get('best')) || 0;
+    g.mode = 'ready';
+    resetGame();
+    drawGame();
+  }
+
+  function resetGame() {
+    const g = state.game;
+    g.alt = 0;
+    g.vy = 0;
+    g.obstacles = [];
+    g.spawnIn = GAME.w * 0.6;
+    g.score = 0;
+    g.passed = 0;
+  }
+
+  function startGame() {
+    const g = state.game;
+    resetGame();
+    g.mode = 'playing';
+    g.last = performance.now();
+    g.raf = requestAnimationFrame(gameFrame);
+  }
+
+  function stopGame() {
+    const g = state.game;
+    cancelAnimationFrame(g.raf);
+    g.mode = 'off';
+    g.ctx = null;
+  }
+
+  // Tek tuş: başlat, zıpla, yeniden başlat
+  function gameInput() {
+    const g = state.game;
+    if (g.mode === 'ready') startGame();
+    else if ((g.mode === 'over' || g.mode === 'won') && performance.now() - g.overAt > GAME.restartDelay) startGame();
+    else if (g.mode === 'playing' && g.alt === 0) g.vy = GAME.jump;
+  }
+
+  function gameFrame(now) {
+    const g = state.game;
+    if (g.mode !== 'playing') return;
+    const dt = Math.min((now - g.last) / 1000, 0.05);
+    g.last = now;
+
+    const speed = Math.min(GAME.speedMax, GAME.speed + g.score * GAME.speedPerPoint);
+    const dist = speed * dt;
+    g.score += dt * 10;
+
+    // Zıplama fiziği
+    g.alt += g.vy * dt;
+    g.vy -= GAME.gravity * dt;
+    if (g.alt <= 0) {
+      g.alt = 0;
+      g.vy = 0;
+    }
+
+    // Engeller: proje renklerinde minik kasetler
+    g.obstacles.forEach((o) => { o.x -= dist; });
+    g.obstacles = g.obstacles.filter((o) => o.x + o.w > 0);
+    g.spawnIn -= dist;
+    if (g.spawnIn <= 0) {
+      const color = PROJECTS[Math.floor(Math.random() * PROJECTS.length)].color;
+      g.obstacles.push({ x: GAME.w, w: 6, h: 8 + Math.floor(Math.random() * 7), color });
+      const gap = GAME.gapMin + Math.random() * (GAME.gapMax - GAME.gapMin);
+      g.spawnIn = gap * (0.3 + 0.7 * speed / GAME.speed);
+    }
+
+    // Çarpışma (1 piksel hoşgörüyle)
+    const left = GAME.playerX + 1;
+    const right = GAME.playerX + GAME.playerSize - 1;
+    if (g.obstacles.some((o) => o.x < right && o.x + o.w > left && g.alt < o.h - 1)) {
+      g.mode = 'over';
+      g.overAt = now;
+      if (g.score > g.best) {
+        g.best = Math.floor(g.score);
+        store.set('best', String(g.best));
+      }
+    }
+
+    // Bölüm: aşılan engelleri say; hedefe ulaşınca kasetler kazanılır
+    g.obstacles.forEach((o) => {
+      if (!o.passed && o.x + o.w < GAME.playerX) {
+        o.passed = true;
+        g.passed++;
+      }
+    });
+    if (g.mode === 'playing' && !state.unlocked && g.passed >= LEVEL_GOAL) {
+      g.mode = 'won';
+      g.overAt = now;
+      unlockCartridges();
+    }
+
+    drawGame();
+    if (g.mode === 'playing') g.raf = requestAnimationFrame(gameFrame);
+  }
+
+  function drawGame() {
+    const g = state.game;
+    const ctx = g.ctx;
+    if (!ctx) return;
+    const ink = '#b8f8b8';
+    const pad4 = (n) => String(Math.floor(n)).padStart(4, '0');
+    ctx.clearRect(0, 0, GAME.w, GAME.h);
+    ctx.font = '8px "Press Start 2P", monospace';
+    ctx.textBaseline = 'top';
+
+    // Zemin
+    ctx.fillStyle = ink;
+    ctx.fillRect(0, GAME.ground, GAME.w, 1);
+
+    // Engeller
+    g.obstacles.forEach((o) => {
+      const x = Math.round(o.x);
+      ctx.fillStyle = o.color;
+      ctx.fillRect(x, GAME.ground - o.h, o.w, o.h);
+      ctx.fillStyle = '#fcfcfc';
+      ctx.fillRect(x + 1, GAME.ground - o.h + 2, o.w - 2, 3);
+    });
+
+    // Oyuncu: gözlü minik kare
+    const py = Math.round(GAME.ground - GAME.playerSize - g.alt);
+    ctx.fillStyle = ink;
+    ctx.fillRect(GAME.playerX, py, GAME.playerSize, GAME.playerSize);
+    ctx.fillStyle = '#06140e';
+    ctx.fillRect(GAME.playerX + 4, py + 2, 1, 2);
+    ctx.fillRect(GAME.playerX + 6, py + 2, 1, 2);
+
+    // Skor ve rekor
+    ctx.fillStyle = ink;
+    ctx.textAlign = 'left';
+    // Bölüm bitene kadar ilerleme, sonrasında rekor
+    const locked = !state.unlocked && g.mode !== 'won';
+    ctx.fillText(locked ? `KASET ${g.passed}/${LEVEL_GOAL}` : `REKOR ${pad4(g.best)}`, 0, 0);
+    ctx.textAlign = 'right';
+    ctx.fillText(pad4(g.score), GAME.w, 0);
+
+    ctx.textAlign = 'center';
+    if (g.mode === 'ready') ctx.fillText('OYNA', GAME.w / 2, 26);
+    if (g.mode === 'over') ctx.fillText('OYUN BİTTİ', GAME.w / 2, 26);
+    if (g.mode === 'won') ctx.fillText('BÖLÜM TAMAM!', GAME.w / 2, 26);
+  }
+
+  /* ----- Statik / karıncalanma (görselsiz, canvas gürültüsü) ----- */
+  const staticCtx = staticCanvas.getContext('2d');
+  let staticTimer = 0;
+
+  function drawStatic() {
+    const { width, height } = staticCanvas;
+    const image = staticCtx.createImageData(width, height);
+    const data = image.data;
+    for (let i = 0; i < data.length; i += 4) {
+      const v = (Math.random() * 255) | 0;
+      data[i] = data[i + 1] = data[i + 2] = v;
+      data[i + 3] = 255;
+    }
+    staticCtx.putImageData(image, 0, 0);
+  }
+
+  function startStatic() {
+    stopStatic();
+    drawStatic();
+    if (!reducedMotion.matches) staticTimer = setInterval(drawStatic, STATIC_INTERVAL);
+  }
+
+  function stopStatic() {
+    clearInterval(staticTimer);
+    staticTimer = 0;
+  }
+
+  /* ==========================================================
+     7a. TIKLAYINCA TEPKİ VEREN NESNELER
+     ========================================================== */
+  function poke(node) {
+    node.classList.remove('is-poked');
+    void node.offsetWidth;   // animasyonu baştan başlatmak için reflow
+    node.classList.add('is-poked');
+  }
+
+  function bindPokes() {
+    world.addEventListener('click', (e) => {
+      const target = e.target.closest('.pokeable');
+      if (target) poke(target);
+    });
+    world.addEventListener('animationend', (e) => {
+      if (e.target.classList.contains('is-poked')) e.target.classList.remove('is-poked');
+    });
+
+    // TV düğmeleri: her tıkta bir kademe döner, ekranda kısa parazit olur
+    let zapTimer = 0;
+    document.querySelectorAll('.tv__knob').forEach((knob) => {
+      let angle = 0;
+      knob.addEventListener('click', () => {
+        angle += 45;
+        knob.style.rotate = `${angle}deg`;
+        drawStatic();
+        glass.classList.add('is-zap');
+        clearTimeout(zapTimer);
+        zapTimer = setTimeout(() => glass.classList.remove('is-zap'), 220);
+      });
+    });
+  }
+
+  /* ==========================================================
+     7b. ZİYARETÇİ SAYACI
+     ========================================================== */
+  async function loadVisitors() {
+    if (!COUNTER.enabled) return;
+    // "Bugün" anahtarı: seçilen saat dilimindeki tarih (YYYY-AA-GG)
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: COUNTER.timeZone }).format(new Date());
+    // Yerelde (dosyadan ya da localhost'tan) açınca sayma, yalnızca oku
+    const isLocal = location.protocol === 'file:' || ['localhost', '127.0.0.1', ''].includes(location.hostname);
+
+    const read = async (key, hit) => {
+      // hit: sayıyı bir artırır; info: yalnızca okur (anahtar yoksa da 200 döner)
+      const res = await fetch(`${COUNTER.api}/${hit ? 'hit' : 'info'}/${COUNTER.namespace}/${key}`);
+      if (!res.ok) throw new Error(`counter ${res.status}`);
+      const data = await res.json();
+      return data.exists === false ? 0 : data.value;
+    };
+    const show = (id, value, digits) => { $(id).textContent = String(value).padStart(digits, '0'); };
+
+    try {
+      const countTotal = !isLocal && !store.get('visited');
+      const countToday = !isLocal && store.get('visited-day') !== today;
+      const [total, daily] = await Promise.all([read('total', countTotal), read(`day-${today}`, countToday)]);
+      if (countTotal) store.set('visited', '1');
+      if (countToday) store.set('visited-day', today);
+      show('stat-total', total, 6);
+      show('stat-today', daily, 4);
+    } catch (_) {
+      // Servise ulaşılamazsa sayaçlar "----" olarak kalır
+    }
+  }
+
+  /* ==========================================================
+     8. KAMERA: sığdırma, sınırlar, çizim döngüsü
+     ========================================================== */
+  function fitScene() {
+    const top = document.querySelector('.hud').offsetHeight;
+    const bottom = $('hint').offsetHeight + 10;
+    const availH = Math.max(200, window.innerHeight - top - bottom);
+    state.cam.fit = clamp(Math.min(window.innerWidth / DESIGN.width, availH / DESIGN.height), 0.3, 1.6);
+    viewport.style.setProperty('--cam-top', `${Math.round(top + availH * DESIGN.pivot)}px`);
+  }
+
+  function clampTargets() {
+    const c = state.cam;
+    c.tYaw = clamp(c.tYaw, -CAM.yawMax, CAM.yawMax);
+    c.tPitch = clamp(c.tPitch, CAM.pitchMin, CAM.pitchMax);
+    c.tZoom = clamp(c.tZoom, CAM.zoomMin, CAM.zoomMax);
+  }
+
+  function resetCamera() {
+    const c = state.cam;
+    c.tYaw = CAM.yaw;
+    c.tPitch = CAM.pitch;
+    c.tZoom = CAM.zoom;
+  }
+
+  function touch(now) {
+    state.cam.lastInput = now ?? performance.now();
+  }
+
+  let lastFrame = performance.now();
+  let lastTransform = '';
+
+  function frame(now) {
+    const c = state.cam;
+    const dt = Math.min((now - lastFrame) / 1000, 0.05);
+    lastFrame = now;
+
+    // Atalet: hedefe üstel yaklaşma (kare hızından bağımsız lerp)
+    const k = 1 - Math.exp(-dt * CAM.smooth);
+    c.yaw += (c.tYaw - c.yaw) * k;
+    c.pitch += (c.tPitch - c.pitch) * k;
+    c.zoom += (c.tZoom - c.zoom) * k;
+
+    // Boşta hafif salınım; etkileşimde söner
+    const idle = !reducedMotion.matches && state.pointers.size === 0 && now - c.lastInput > CAM.idleDelay;
+    c.sway += ((idle ? 1 : 0) - c.sway) * (1 - Math.exp(-dt * 2));
+    const yaw = c.yaw + Math.sin(now / 2600) * CAM.swayYaw * c.sway;
+    const pitch = c.pitch + Math.sin(now / 3700) * CAM.swayPitch * c.sway;
+
+    const scale = (c.fit * c.zoom).toFixed(4);
+    const transform = `scale3d(${scale},${scale},${scale}) rotateX(${(-pitch).toFixed(3)}deg) rotateY(${yaw.toFixed(3)}deg)`;
+    if (transform !== lastTransform) {
+      lastTransform = transform;
+      viewport.style.setProperty('--scale', scale);
+      camera.style.transform = transform;
+    }
+    requestAnimationFrame(frame);
+  }
+
+  /* ==========================================================
+     9. GİRDİ: fare, dokunmatik, teker, klavye
+     ========================================================== */
+  function pinchDistance() {
+    const [a, b] = [...state.pointers.values()];
+    return Math.hypot(a.x - b.x, a.y - b.y);
+  }
+
+  function startDrag(pointerId) {
+    state.dragging = true;
+    state.suppressClick = true;
+    root.classList.add('is-dragging');
+    try { viewport.setPointerCapture(pointerId); } catch (_) { /* işaretçi çoktan bırakılmış */ }
+  }
+
+  function onPointerDown(e) {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    touch();
+    state.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, startX: e.clientX, startY: e.clientY });
+    if (state.pointers.size === 1) {
+      state.dragging = false;
+      state.suppressClick = false;
+    } else if (state.pointers.size === 2) {
+      // İkinci parmak: pinch başlar, tıklama iptal
+      state.pinchDist = pinchDistance();
+      startDrag(e.pointerId);
+    }
+  }
+
+  function onPointerMove(e) {
+    touch();
+    const p = state.pointers.get(e.pointerId);
+    if (!p) return;
+    const dx = e.clientX - p.x;
+    const dy = e.clientY - p.y;
+    p.x = e.clientX;
+    p.y = e.clientY;
+
+    if (state.pointers.size >= 2) {
+      const dist = pinchDistance();
+      if (state.pinchDist > 0) state.cam.tZoom *= dist / state.pinchDist;
+      state.pinchDist = dist;
+      clampTargets();
+      return;
+    }
+
+    // Eşik aşılmadan sürükleme sayılmaz; böylece tıklamalar bozulmaz
+    if (!state.dragging) {
+      if (Math.hypot(e.clientX - p.startX, e.clientY - p.startY) <= CAM.dragThreshold) return;
+      startDrag(e.pointerId);
+    }
+    state.cam.tYaw += dx * CAM.dragSpeed;
+    state.cam.tPitch += dy * CAM.dragSpeed;
+    clampTargets();
+  }
+
+  function onPointerUp(e) {
+    if (!state.pointers.delete(e.pointerId)) return;
+    state.pinchDist = 0;
+    if (state.pointers.size === 0) {
+      state.dragging = false;
+      root.classList.remove('is-dragging');
+      // click olayı pointerup'tan hemen sonra gelir; onu yuttuktan sonra bayrağı indir
+      setTimeout(() => { state.suppressClick = false; }, 0);
+    }
+  }
+
+  function onClickCapture(e) {
+    if (!state.suppressClick) return;
+    e.preventDefault();
+    e.stopPropagation();
+  }
+
+  function onWheel(e) {
+    e.preventDefault();
+    touch();
+    const delta = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
+    state.cam.tZoom *= Math.exp(-delta * CAM.wheelSpeed);
+    clampTargets();
+  }
+
+  function onKeyDown(e) {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    const c = state.cam;
+    switch (e.key.toLowerCase()) {
+      case 'arrowleft': case 'a': c.tYaw -= CAM.keyStep; break;
+      case 'arrowright': case 'd': c.tYaw += CAM.keyStep; break;
+      case 'arrowup': case 'w': c.tPitch += CAM.keyStep; break;
+      case 'arrowdown': case 's': c.tPitch -= CAM.keyStep; break;
+      case '+': case '=': c.tZoom *= CAM.keyZoom; break;
+      case '-': case '_': c.tZoom /= CAM.keyZoom; break;
+      case 'r': resetCamera(); break;
+      case ' ':
+        // Boşluk: mini oyunda zıpla (odak bir düğme/linkteyse onun işini bozma)
+        if (state.game.mode === 'off' || document.activeElement?.closest('button, a')) return;
+        gameInput();
+        break;
+      default: return;
+    }
+    e.preventDefault();
+    touch();
+    clampTargets();
+  }
+
+  function bindInput() {
+    viewport.addEventListener('pointerdown', onPointerDown);
+    viewport.addEventListener('pointermove', onPointerMove);
+    viewport.addEventListener('pointerup', onPointerUp);
+    viewport.addEventListener('pointercancel', onPointerUp);
+    viewport.addEventListener('click', onClickCapture, true);
+    viewport.addEventListener('dragstart', (e) => e.preventDefault());
+    viewport.addEventListener('wheel', onWheel, { passive: false });
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('resize', fitScene);
+    // Safari'nin kendi pinch-zoom'unu engelle
+    document.addEventListener('gesturestart', (e) => e.preventDefault());
+  }
+
+  /* ==========================================================
+     10. BAŞLAT
+     ========================================================== */
+  buildScene();
+  fitScene();
+  bindInput();
+  bindPokes();
+  loadVisitors();
+  requestAnimationFrame(frame);
+  // Font yüklenince başlık yüksekliği değişebilir
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { fitScene(); drawGame(); });
+})();
+</script>
+</body>
+</html>
