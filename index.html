@@ -94,8 +94,10 @@
   --t-flicker: 4.3s;
   --t-scanband: 6s;
   --t-poke: 700ms;
-  --t-deal: 340ms;           /* kazanılan kasetin rafa inişi */
+  --t-deal-delay: 500ms;     /* açılışta kasetler inmeden önceki bekleme */
+  --t-deal: 340ms;           /* kasetin rafa inişi */
   --t-deal-gap: 130ms;       /* kasetler arası gecikme */
+  --t-attract: 2.8s;         /* dikkat çekme zıplamasının döngüsü */
 
   --font: "Press Start 2P", ui-monospace, "Courier New", monospace;
 }
@@ -992,32 +994,6 @@ a.cv-paper:focus-visible {
   filter: drop-shadow(0 0 3px rgba(184, 248, 184, .45));
 }
 
-.screen__foot {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-/* Oyunu oynamadan kasetleri getir */
-.screen__skip {
-  padding: 6px 8px 5px;
-  border: 1px solid currentColor;
-  background: none;
-  font: inherit;
-  font-size: 8px;
-  line-height: 1;
-  color: var(--c-cyan);
-  cursor: pointer;
-}
-
-.screen__skip:hover,
-.screen__skip:focus-visible {
-  background: var(--c-cyan);
-  color: var(--c-black);
-  outline: none;
-  text-shadow: none;
-}
-
 .screen__hint {
   margin: 0;
   font-size: 7px;
@@ -1253,7 +1229,7 @@ a.screen__link:focus-visible {
 /* Takma fazları */
 .cartridge[data-phase="lifted"] { --y: calc(var(--home-y) - var(--lift)); }
 
-/* Henüz kazanılmamış kasetler: rafın yukarısında, görünmez ve odaklanamaz */
+/* Açılış animasyonundan önce: rafın yukarısında, görünmez ve odaklanamaz */
 .cartridge[data-phase="away"] {
   --y: calc(var(--home-y) - 520px);
   visibility: hidden;
@@ -1299,6 +1275,45 @@ a.screen__link:focus-visible {
 }
 
 .cartridge.is-settling .cartridge__body { animation: settle var(--t-settle) steps(4, end); }
+
+/* Dikkat çekme: ilk kaset takılana kadar kasetler sırayla zıplar
+   (hover'daki transform'la çakışmasın diye translate kullanılır) */
+.world.is-attract .cartridge__body {
+  animation: attract var(--t-attract) steps(1, end) infinite;
+  animation-delay: calc(var(--i) * 150ms);
+}
+
+/* "KASET SEÇ" tabelası: rafın üstünde, aşağıyı gösteren okla */
+.rack-sign {
+  position: absolute;
+  left: 0;
+  top: 0;
+  padding: 7px 9px 5px;
+  transform: translate3d(-50%, -100%, 0) translate3d(0, calc(var(--home-y) - var(--cart-h) / 2 - 34px), var(--rack-z));
+  background: var(--c-yellow);
+  box-shadow: 0 0 0 3px var(--c-black);
+  font-size: 9px;
+  line-height: 1;
+  white-space: nowrap;
+  color: var(--c-black);
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.rack-sign::after {
+  content: "";
+  position: absolute;
+  left: calc(50% - 8px);
+  top: calc(100% + 3px);
+  border: 8px solid transparent;
+  border-top: 10px solid var(--c-yellow);
+  border-bottom: 0;
+}
+
+.world.is-attract .rack-sign {
+  visibility: visible;
+  animation: sign-bob 900ms steps(2, end) infinite;
+}
 
 /* Ön yüz gerçek <button> */
 .cartridge__btn {
@@ -1409,6 +1424,19 @@ a.screen__link:focus-visible {
   100% { opacity: 1;   filter: brightness(1); }
 }
 
+@keyframes attract {
+  0%  { translate: 0 0; }
+  3%  { translate: 0 -8px; }
+  6%  { translate: 0 -16px; }
+  9%  { translate: 0 -8px; }
+  12%, 100% { translate: 0 0; }
+}
+
+@keyframes sign-bob {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 -6px; }
+}
+
 /* Tıklanan nesnelerin tepkisi (transform'a dokunmamak için translate/rotate) */
 @keyframes poke-hop {
   0%   { translate: 0 0; }
@@ -1459,6 +1487,7 @@ a.screen__link:focus-visible {
     --t-eject-down: 60ms;
     --t-boot: 80ms;
     --t-hover: 0ms;
+    --t-deal-delay: 0ms;
     --t-deal: 80ms;
     --t-deal-gap: 30ms;
   }
@@ -1467,6 +1496,8 @@ a.screen__link:focus-visible {
   .fx--scan::after,
   .screen__idle-text,
   .screen__arrow,
+  .world.is-attract .cartridge__body,
+  .world.is-attract .rack-sign,
   .cartridge.is-settling .cartridge__body { animation: none; }
 }
 </style>
@@ -1540,6 +1571,9 @@ a.screen__link:focus-visible {
         <div class="face face--right"></div>
         <div class="face face--top"></div>
       </div>
+
+      <!-- İlk kaset takılana kadar görünen tabela -->
+      <div class="rack-sign" aria-hidden="true">BİR KASET SEÇ</div>
 
       <!-- CRT TV -->
       <div class="box tv" id="tv">
@@ -1654,8 +1688,6 @@ a.screen__link:focus-visible {
   // Sahnenin ölçeklenmeden önceki tasarım boyutu
   const DESIGN = { width: 570, height: 740, pivot: 0.53 };
   const STATIC_INTERVAL = 90;
-  // Bölüm: bu kadar engeli tek seferde aşınca kasetler rafa gelir
-  const LEVEL_GOAL = PROJECTS.length;
 
   // Mini oyun (boyutlar tuvalin düşük çözünürlüklü pikselleri, hızlar piksel/sn)
   const GAME = {
@@ -1671,7 +1703,7 @@ a.screen__link:focus-visible {
      3. DURUM (tek kaynak)
      ========================================================== */
   const state = {
-    unlocked: false,       // kasetler kazanıldı mı (oyun bitirildi ya da geçildi)
+    attract: false,        // ilk kaset takılana kadar kasetler dikkat çeker
     inserted: null,        // takılı kasetin id'si
     busy: false,           // animasyon kilidi
     queued: null,          // animasyon sürerken gelen son istek
@@ -1690,7 +1722,6 @@ a.screen__link:focus-visible {
       ctx: null,
       alt: 0, vy: 0,       // oyuncunun yerden yüksekliği ve dikey hızı
       obstacles: [], spawnIn: 0,
-      passed: 0,           // bu elde aşılan engel sayısı
       score: 0, best: 0,
       last: 0, overAt: 0, raf: 0,
     },
@@ -1973,7 +2004,7 @@ a.screen__link:focus-visible {
      ========================================================== */
   function createCartridge(project, index) {
     const cart = el('div', 'box cartridge');
-    cart.dataset.phase = state.unlocked ? 'home' : 'away';
+    cart.dataset.phase = 'away';   // açılışta dealCartridges ile rafa iner
     cart.style.setProperty('--i', index);
     cart.style.setProperty('--c', project.color);
 
@@ -2019,7 +2050,6 @@ a.screen__link:focus-visible {
   }
 
   function buildScene() {
-    state.unlocked = store.get('unlocked') === '1';
     $('owner').textContent = OWNER_NAME;
     document.title = `${OWNER_NAME} · PORTFOLYO`;
     $('links').append(...LINKS.map(createLink));
@@ -2046,7 +2076,7 @@ a.screen__link:focus-visible {
      ========================================================== */
   // Animasyon sürerken gelen tıklamalardan yalnızca sonuncusu sıraya alınır.
   async function requestToggle(id) {
-    if (!state.unlocked) return;
+    if (state.attract) setAttract(false);
     if (state.busy) {
       state.queued = id;
       return;
@@ -2065,17 +2095,12 @@ a.screen__link:focus-visible {
     }
   }
 
-  // Bölüm bitince (ya da "GEÇ" ile) kasetler sırayla yukarıdan rafa iner.
-  // Bir kez kazanılınca tarayıcıda hatırlanır; sonraki ziyarette hazır gelir.
-  async function unlockCartridges() {
-    if (state.unlocked) return;
-    state.unlocked = true;
-    store.set('unlocked', '1');
-    const text = screen.querySelector('.screen__idle-text');
-    if (text) text.textContent = 'KASET TAK';
-    screen.querySelector('.screen__skip')?.remove();
+  // Açılış: kasetler sırayla yukarıdan rafa iner, sonra ilk kaset takılana
+  // kadar sırayla zıplayıp "KASET SEÇ" tabelasıyla dikkat çeker.
+  async function dealCartridges() {
     state.busy = true;
     try {
+      await wait(cssNum('--t-deal-delay'));
       for (const { el: cart } of carts.values()) {
         moveCart(cart, 'home', '--t-deal', 6);
         await wait(cssNum('--t-deal-gap'));
@@ -2084,6 +2109,19 @@ a.screen__link:focus-visible {
     } finally {
       state.busy = false;
     }
+    // İniş sırasında bir kasete tıklandıysa onu şimdi tak; yoksa dikkat çekmeye başla
+    if (state.queued !== null) {
+      const id = state.queued;
+      state.queued = null;
+      requestToggle(id);
+    } else {
+      setAttract(true);
+    }
+  }
+
+  function setAttract(on) {
+    state.attract = on;
+    world.classList.toggle('is-attract', on);
   }
 
   async function toggle(id) {
@@ -2143,19 +2181,10 @@ a.screen__link:focus-visible {
     // detail === 0: klavyeyle (Enter/Boşluk) tetiklenen click.
     play.addEventListener('pointerdown', () => { if (state.game.mode === 'playing') gameInput(); });
     play.addEventListener('click', (e) => { if (state.game.mode !== 'playing' || e.detail === 0) gameInput(); });
-    const foot = el('div', 'screen__foot');
-    foot.append(el('p', 'screen__hint', 'ZIPLA: TIKLA / BOŞLUK'));
-    if (!state.unlocked) {
-      const skip = el('button', 'screen__skip', 'GEÇ');
-      skip.type = 'button';
-      skip.setAttribute('aria-label', 'Oyunu geç ve kasetleri getir');
-      skip.addEventListener('click', unlockCartridges);
-      foot.append(skip);
-    }
     idle.append(
-      el('p', 'screen__idle-text', state.unlocked ? 'KASET TAK' : 'KASETLERİ KAZAN!'),
+      el('p', 'screen__idle-text', 'KASET TAK'),
       play,
-      foot,
+      el('p', 'screen__hint', 'MİNİ OYUN: TIKLA / BOŞLUK'),
     );
     screen.replaceChildren(idle);
     mountGame(canvas);
@@ -2255,7 +2284,6 @@ a.screen__link:focus-visible {
     g.obstacles = [];
     g.spawnIn = GAME.w * 0.6;
     g.score = 0;
-    g.passed = 0;
   }
 
   function startGame() {
@@ -2277,7 +2305,7 @@ a.screen__link:focus-visible {
   function gameInput() {
     const g = state.game;
     if (g.mode === 'ready') startGame();
-    else if ((g.mode === 'over' || g.mode === 'won') && performance.now() - g.overAt > GAME.restartDelay) startGame();
+    else if (g.mode === 'over' && performance.now() - g.overAt > GAME.restartDelay) startGame();
     else if (g.mode === 'playing' && g.alt === 0) g.vy = GAME.jump;
   }
 
@@ -2322,19 +2350,6 @@ a.screen__link:focus-visible {
       }
     }
 
-    // Bölüm: aşılan engelleri say; hedefe ulaşınca kasetler kazanılır
-    g.obstacles.forEach((o) => {
-      if (!o.passed && o.x + o.w < GAME.playerX) {
-        o.passed = true;
-        g.passed++;
-      }
-    });
-    if (g.mode === 'playing' && !state.unlocked && g.passed >= LEVEL_GOAL) {
-      g.mode = 'won';
-      g.overAt = now;
-      unlockCartridges();
-    }
-
     drawGame();
     if (g.mode === 'playing') g.raf = requestAnimationFrame(gameFrame);
   }
@@ -2373,16 +2388,13 @@ a.screen__link:focus-visible {
     // Skor ve rekor
     ctx.fillStyle = ink;
     ctx.textAlign = 'left';
-    // Bölüm bitene kadar ilerleme, sonrasında rekor
-    const locked = !state.unlocked && g.mode !== 'won';
-    ctx.fillText(locked ? `KASET ${g.passed}/${LEVEL_GOAL}` : `REKOR ${pad4(g.best)}`, 0, 0);
+    ctx.fillText(`REKOR ${pad4(g.best)}`, 0, 0);
     ctx.textAlign = 'right';
     ctx.fillText(pad4(g.score), GAME.w, 0);
 
     ctx.textAlign = 'center';
     if (g.mode === 'ready') ctx.fillText('OYNA', GAME.w / 2, 26);
     if (g.mode === 'over') ctx.fillText('OYUN BİTTİ', GAME.w / 2, 26);
-    if (g.mode === 'won') ctx.fillText('BÖLÜM TAMAM!', GAME.w / 2, 26);
   }
 
   /* ----- Statik / karıncalanma (görselsiz, canvas gürültüsü) ----- */
@@ -2662,6 +2674,7 @@ a.screen__link:focus-visible {
   bindInput();
   bindPokes();
   loadVisitors();
+  dealCartridges();
   requestAnimationFrame(frame);
   // Font yüklenince başlık yüksekliği değişebilir
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { fitScene(); drawGame(); });
