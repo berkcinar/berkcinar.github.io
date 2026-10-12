@@ -4,7 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>PORTFOLYO</title>
-<meta name="description" content="8-bit retro oyun temalı portfolyo: kaseti tak, projeyi oynat.">
+<meta name="description" content="8-bit retro oyun temalı portfolyo: kaseti tak, projeyi oynat." id="meta-desc">
+<meta name="theme-color" content="#07060f">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Berk Çinar · Portfolio">
+<meta property="og:description" content="8-bit retro game themed portfolio: insert a cartridge, play the project.">
+<!-- Yayına alınca og:image adresini tam URL yap (ör. https://siteadi.com/og-image.png) -->
+<meta property="og:image" content="og-image.png">
+<meta name="twitter:card" content="summary_large_image">
 <!-- Tarayıcının favicon.ico istemesini engeller (sayfada görsel isteği olmasın) -->
 <link rel="icon" href="data:,">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -94,6 +101,7 @@
   --t-flicker: 4.3s;
   --t-scanband: 6s;
   --t-poke: 700ms;
+  --t-ferris: 24s;           /* dönme dolabın tam tur süresi */
   --t-deal-delay: 500ms;     /* açılışta kasetler inmeden önceki bekleme */
   --t-deal: 340ms;           /* kasetin rafa inişi */
   --t-deal-gap: 130ms;       /* kasetler arası gecikme */
@@ -735,15 +743,79 @@ a.cv-paper:focus-visible {
   background-repeat: no-repeat;
 }
 
-/* Harfli küpler */
-.block > .face {
+/* Futbol topu: üst üste binen beyaz daireler (küre) + siyah beşgen yamalar */
+.ball__disc {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fcfcfc 62%, #d4d4dc 100%);
+}
+
+.ball__patch {
+  position: absolute;
+  background: var(--c-black);
+  clip-path: polygon(50% 0, 100% 38%, 81% 100%, 19% 100%, 0 38%);
+  backface-visibility: hidden;
+}
+
+/* Kinex dönme dolap: tekerlek döner, kabinler dik kalır */
+.ferris .group { pointer-events: inherit; }
+.ferris .face { box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .3); }
+
+.ferris__spin { animation: ferris-spin var(--t-ferris) linear infinite; }
+.ferris__car { animation: ferris-counter var(--t-ferris) linear infinite; }
+
+.ferris__base > .face--front {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
-  color: var(--c-white);
-  box-shadow: inset 0 0 0 4px rgba(255, 255, 255, .35);
+  font-size: 7px;
+  color: var(--c-yellow);
 }
+
+/* Pencere: gündüz / gece (tarayıcı saatine göre) */
+.window[data-time="day"] { background-color: #78c8f8; }
+.window[data-time="day"] .window__stars { display: none; }
+.window[data-time="day"] .window__moon { background: #f8d800; box-shadow: 0 0 22px 8px rgba(248, 216, 0, .45); }
+.window[data-time="day"] .window__moon::after { display: none; }
+
+/* Posta kutusu: ön yüzde koyu ağız */
+.mailbox__body > .face--front {
+  background-image: linear-gradient(var(--c-black), var(--c-black));
+  background-size: 70% 55%;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+/* Playcups: açık ağızlı bardak */
+.cup__mouth > .face--top { background-image: linear-gradient(rgba(0, 0, 0, .6), rgba(0, 0, 0, .6)); }
+
+/* Dil seçici */
+.hud__lang,
+.hud__sound {
+  display: flex;
+  gap: 4px;
+  font-family: inherit;
+  cursor: pointer;
+  border-color: var(--c-pink);
+  color: var(--c-grey-d);
+}
+
+.hud__sound { border-color: var(--c-green); color: var(--c-green); }
+.hud__sound.is-off { border-color: var(--c-grey-d); color: var(--c-grey-d); }
+.hud__lang b { font-weight: 400; }
+.hud__lang b.is-active { color: var(--c-pink); text-decoration: underline; text-underline-offset: 3px; }
+
+.hud__lang:hover,
+.hud__lang:focus-visible,
+.hud__sound:hover,
+.hud__sound:focus-visible {
+  background: var(--c-white);
+  border-color: var(--c-white);
+  outline: none;
+}
+
+.hud__lang:hover b,
+.hud__lang:focus-visible b { color: var(--c-black); }
 
 /* ==========================================================
    6. TV SEHPASI
@@ -1365,6 +1437,17 @@ a.screen__link:focus-visible {
   color: var(--c-grey-d);
 }
 
+.cartridge__logo--img {
+  border: 0;
+  padding: 1px;
+}
+
+.cartridge__logo--img svg {
+  height: 100%;
+  width: auto;
+  image-rendering: pixelated;
+}
+
 .cartridge__name {
   position: absolute;
   left: 2px;
@@ -1453,6 +1536,14 @@ a.screen__link:focus-visible {
   80% { rotate: -3deg; }
 }
 
+@keyframes ferris-spin {
+  to { rotate: 360deg; }
+}
+
+@keyframes ferris-counter {
+  to { rotate: -360deg; }
+}
+
 @keyframes scanband {
   from { transform: translateY(-100%); }
   to   { transform: translateY(400%); }
@@ -1492,6 +1583,8 @@ a.screen__link:focus-visible {
     --t-deal-gap: 30ms;
   }
 
+  .ferris__spin,
+  .ferris__car,
   .tv__glass,
   .fx--scan::after,
   .screen__idle-text,
@@ -1505,14 +1598,14 @@ a.screen__link:focus-visible {
 <body>
 
 <header class="hud">
-  <p class="hud__stat"><span>TOPLAM</span><b id="stat-total" aria-label="Toplam ziyaretçi">------</b></p>
+  <p class="hud__stat"><span data-i18n="statTotal">TOPLAM</span><b id="stat-total" data-i18n-aria="statTotalAria" aria-label="Toplam ziyaretçi">------</b></p>
   <div class="hud__title">
     <h1 id="owner"></h1>
-    <p>PORTFOLYO</p>
+    <p data-i18n="subtitle">PORTFOLYO</p>
   </div>
-  <p class="hud__stat hud__stat--right"><span>BUGÜN</span><b id="stat-today" aria-label="Bugünkü ziyaretçi">----</b></p>
+  <p class="hud__stat hud__stat--right"><span data-i18n="statToday">BUGÜN</span><b id="stat-today" data-i18n-aria="statTodayAria" aria-label="Bugünkü ziyaretçi">----</b></p>
   <!-- Bağlantılar JS'teki LINKS dizisinden üretilir -->
-  <nav class="hud__links" id="links" aria-label="Bağlantılar"></nav>
+  <nav class="hud__links" id="links" data-i18n-aria="linksAria" aria-label="Bağlantılar"></nav>
 </header>
 
 <main class="viewport" id="viewport">
@@ -1573,7 +1666,7 @@ a.screen__link:focus-visible {
       </div>
 
       <!-- İlk kaset takılana kadar görünen tabela -->
-      <div class="rack-sign" aria-hidden="true">BİR KASET SEÇ</div>
+      <div class="rack-sign" data-i18n="sign" aria-hidden="true">BİR KASET SEÇ</div>
 
       <!-- CRT TV -->
       <div class="box tv" id="tv">
@@ -1592,7 +1685,7 @@ a.screen__link:focus-visible {
             <i class="tv__knob tv__knob--2"></i>
             <i class="tv__speaker"></i>
           </div>
-          <span class="tv__brand" aria-hidden="true">PİKSEL-TV</span>
+          <span class="tv__brand" data-i18n="tvBrand" aria-hidden="true">PİKSEL-TV</span>
           <span class="tv__heart" id="tv-heart" aria-hidden="true"></span>
           <i class="tv__led"></i>
         </div>
@@ -1615,7 +1708,7 @@ a.screen__link:focus-visible {
   </div>
 </main>
 
-<p class="hint" id="hint">SÜRÜKLE: DÖNDÜR · TEKER: ZOOM · R: SIFIRLA</p>
+<p class="hint" id="hint" data-i18n="hint">SÜRÜKLE: DÖNDÜR · TEKER: ZOOM · R: SIFIRLA</p>
 
 <script>
 (() => {
@@ -1646,29 +1739,95 @@ a.screen__link:focus-visible {
     timeZone: 'Europe/Istanbul',   // "bugün" hangi saat dilimine göre
   };
 
+  // Metinler { tr, en } çiftidir; düz yazı verirsen her dilde aynı görünür.
   // shortTitle kasetin üstüne yazılır; en fazla 8 karakter sığar.
   // url boşsa TV'de "YAKINDA" yazar ve tıklanamaz.
+  // Kaset etiketindeki logolar (satır içi SVG). Blex: sitenin favicon.svg dosyası;
+  // CloudSim: sitenin başlığındaki bulut simgesi.
+  const LOGOS = {
+    blex: '<svg viewBox="0 0 64 64" fill="none"><rect width="64" height="64" rx="16" fill="#2563EB"/><path d="M32 16L20 48h6l2.5-7h11l2.5 7h6L32 16zm-1.5 19L32 28l1.5 7h-3z" fill="white"/><circle cx="32" cy="20" r="3" fill="white" opacity="0.8"/><path d="M44 18l-4 4m4 0l-4-4" stroke="white" stroke-width="1.5" stroke-linecap="round" opacity="0.6"/></svg>',
+    cloud: '<svg viewBox="0 0 64 64"><rect width="64" height="64" rx="16" fill="#111827"/><path d="M20 46a10 10 0 0 1-1-19.9A14 14 0 0 1 46 28a9 9 0 0 1-1 18z" fill="#e5e7eb"/><path d="M22 46a9 9 0 0 1 0-18" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round"/></svg>',
+  };
+  // İletişim: posta kutusuna tıklayınca bu adrese e-posta açılır. Boşsa "YAKINDA" der.
+  const CONTACT = { email: 'berkcinar01@gmail.com' };
+
+  // Kitaplıktaki kitaplar: tıklayınca sırtındaki teknolojinin adı çıkar
+  const TECH = ['PYTHON', 'GO', 'NODE.JS', 'TYPESCRIPT', 'REACT', 'NEXT.JS', 'AWS', 'GCP', 'TERRAFORM'];
+
+  const SOON_DESC = { tr: 'Çok yakında...', en: 'Coming soon...' };
   const PROJECTS = [
     {
       id: 'blex-ai',
       title: 'BLEX AI',
       shortTitle: 'BLEX AI',
-      description: 'Fotoğraflarını yapay zekâ ile sanat eserine dönüştür. Bir görsel yükle, profesyonel sanatsal stilleri saniyeler içinde uygula.',
+      description: {
+        tr: 'Fotoğraflarını yapay zekâ ile sanat eserine dönüştür: bir görsel ve stil seç, saniyeler içinde uygula. Go, Cloud Run, Vertex AI (Gemini), Firestore.',
+        en: 'Turn your photos into works of art with AI: pick an image and a style, applied in seconds. Go, Cloud Run, Vertex AI (Gemini), Firestore.',
+      },
       url: 'https://blexxai.com',
+      logo: LOGOS.blex,
       color: '#d82800',
     },
     {
       id: 'cloudarchitect-sim',
       title: 'CloudArchitect-Sim',
       shortTitle: 'CLOUDSIM',
-      description: 'Sürükle-bırak tuval üzerinde sistem tasarımı mülakatı pratiği. Mimarini kur, yapay zekâ mülakatçı değerlendirsin.',
+      description: {
+        tr: 'Sürükle-bırak tuvalde sistem tasarımı mülakatı pratiği: mimarini çiz, LLM mülakatçı 5 eksende puanlasın. Next.js, FastAPI, Cloud Run.',
+        en: 'Practice system design interviews on a drag-and-drop canvas: draw your architecture and an LLM interviewer scores it on 5 axes. Next.js, FastAPI, Cloud Run.',
+      },
       url: 'https://systemdesignsimulation.com/',
+      logo: LOGOS.cloud,
       color: '#0058f8',
     },
-    { id: 'proje-3', title: 'PROJE 3', shortTitle: 'PROJE 3', description: 'Çok yakında...', url: '', color: '#00a800' },
-    { id: 'proje-4', title: 'PROJE 4', shortTitle: 'PROJE 4', description: 'Çok yakında...', url: '', color: '#f8b800' },
-    { id: 'proje-5', title: 'PROJE 5', shortTitle: 'PROJE 5', description: 'Çok yakında...', url: '', color: '#6844fc' },
+    { id: 'proje-3', title: { tr: 'PROJE 3', en: 'PROJECT 3' }, shortTitle: { tr: 'PROJE 3', en: 'PROJ 3' }, description: SOON_DESC, url: '', color: '#00a800' },
+    { id: 'proje-4', title: { tr: 'PROJE 4', en: 'PROJECT 4' }, shortTitle: { tr: 'PROJE 4', en: 'PROJ 4' }, description: SOON_DESC, url: '', color: '#f8b800' },
+    { id: 'proje-5', title: { tr: 'PROJE 5', en: 'PROJECT 5' }, shortTitle: { tr: 'PROJE 5', en: 'PROJ 5' }, description: SOON_DESC, url: '', color: '#6844fc' },
   ];
+
+  /* ----- Diller: arayüz metinleri ----- */
+  const I18N = {
+    tr: {
+      docTitle: 'PORTFOLYO',
+      metaDesc: '8-bit retro oyun temalı portfolyo: kaseti tak, projeyi oynat.',
+      subtitle: 'PORTFOLYO',
+      statTotal: 'TOPLAM', statToday: 'BUGÜN',
+      statTotalAria: 'Toplam ziyaretçi', statTodayAria: 'Bugünkü ziyaretçi',
+      linksAria: 'Bağlantılar',
+      sign: 'BİR KASET SEÇ', tvBrand: 'PİKSEL-TV',
+      hint: 'SÜRÜKLE: DÖNDÜR · TEKER: ZOOM · R: SIFIRLA',
+      idle: 'KASET TAK', gameHint: 'MİNİ OYUN: TIKLA / BOŞLUK',
+      gameAria: 'Mini oyun: başlatmak ve zıplamak için bas',
+      best: 'REKOR', play: 'OYNA', over: 'OYUN BİTTİ',
+      goProject: 'PROJEYE GİT', soon: 'YAKINDA', soonTitle: 'Yakında',
+      cvAria: 'CV dosyasını aç', cvNote: 'TIKLA',
+      langAria: 'Dil: Türkçe / English',
+      bKermit: 'VRAK!', bSnoopy: 'HAV!', bWoodstock: 'CİK!', bBall: 'GOL!', bFerris: 'VIIIN!', bCups: 'OYNA!',
+      soundOn: 'SES: AÇIK', soundOff: 'SES: KAPALI', soundAria: 'Sesi aç / kapat',
+      bMail: 'POSTA!',
+      cartInsert: (t) => `${t} kasetini tak`, cartEject: (t) => `${t} kasetini çıkar`,
+    },
+    en: {
+      docTitle: 'PORTFOLIO',
+      metaDesc: '8-bit retro game themed portfolio: insert a cartridge, play the project.',
+      subtitle: 'PORTFOLIO',
+      statTotal: 'TOTAL', statToday: 'TODAY',
+      statTotalAria: 'Total visitors', statTodayAria: 'Visitors today',
+      linksAria: 'Links',
+      sign: 'PICK A GAME', tvBrand: 'PIXEL-TV',
+      hint: 'DRAG: ROTATE · WHEEL: ZOOM · R: RESET',
+      idle: 'INSERT GAME', gameHint: 'MINI GAME: CLICK / SPACE',
+      gameAria: 'Mini game: press to start and to jump',
+      best: 'BEST', play: 'PLAY', over: 'GAME OVER',
+      goProject: 'VISIT PROJECT', soon: 'SOON', soonTitle: 'Coming soon',
+      cvAria: 'Open the CV file', cvNote: 'CLICK',
+      langAria: 'Language: English / Türkçe',
+      bKermit: 'RIBBIT!', bSnoopy: 'WOOF!', bWoodstock: 'TWEET!', bBall: 'GOAL!', bFerris: 'WHEEE!', bCups: 'PLAY!',
+      soundOn: 'SOUND: ON', soundOff: 'SOUND: OFF', soundAria: 'Toggle sound',
+      bMail: 'MAIL!',
+      cartInsert: (t) => `Insert ${t} cartridge`, cartEject: (t) => `Eject ${t} cartridge`,
+    },
+  };
 
   /* ==========================================================
      2. AYARLAR
@@ -1703,6 +1862,7 @@ a.screen__link:focus-visible {
      3. DURUM (tek kaynak)
      ========================================================== */
   const state = {
+    lang: 'tr',            // tr | en
     attract: false,        // ilk kaset takılana kadar kasetler dikkat çeker
     inserted: null,        // takılı kasetin id'si
     busy: false,           // animasyon kilidi
@@ -1740,6 +1900,47 @@ a.screen__link:focus-visible {
   const staticCanvas = $('static');
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
   const carts = new Map();   // id -> { el, btn, project }
+
+  /* ----- Ses: WebAudio ile 8-bit bipler (varsayılan kapalı) ----- */
+  const SFX = {
+    insert: [[330, .06], [494, .06], [660, .1]],
+    eject: [[660, .06], [440, .06], [294, .1]],
+    poke: [[520, .05], [780, .08]],
+    jump: [[300, .05], [600, .07]],
+    over: [[300, .1], [220, .1], [150, .2]],
+    click: [[880, .04]],
+    mail: [[660, .08], [880, .08], [1320, .12]],
+  };
+  const sound = { on: false, ctx: null };
+
+  function sfx(name) {
+    if (!sound.on) return;
+    try {
+      sound.ctx = sound.ctx || new (window.AudioContext || window.webkitAudioContext)();
+      const ctx = sound.ctx;
+      if (ctx.state === 'suspended') ctx.resume();
+      let at = ctx.currentTime;
+      (SFX[name] || []).forEach(([freq, dur]) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(.05, at);
+        gain.gain.exponentialRampToValueAtTime(.001, at + dur);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(at);
+        osc.stop(at + dur);
+        at += dur;
+      });
+    } catch (_) { /* ses desteklenmiyor: sessizce vazgeç */ }
+  }
+
+  // Çeviri: t('anahtar') arayüz metni, L({tr,en}) proje metni
+  const t = (key, ...args) => {
+    const v = I18N[state.lang][key];
+    return typeof v === 'function' ? v(...args) : v;
+  };
+  const L = (v) => (typeof v === 'string' ? v : v[state.lang]);
 
   const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
   const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -1800,8 +2001,10 @@ a.screen__link:focus-visible {
   }
 
   // Konuşma balonu: figürün tepesinde (y) durur, tıklanınca görünür
-  function bubble(text, y, z = 0) {
-    const node = el('span', 'bubble', text);
+  function bubble(key, y, z = 0) {
+    const known = key in I18N.tr;   // bilinmeyen anahtar düz metindir (ör. teknoloji adı)
+    const node = el('span', 'bubble', known ? t(key) : key);
+    if (known) node.dataset.i18n = key;
     node.setAttribute('aria-hidden', 'true');
     node.style.top = `${y}px`;
     node.style.transform = `translate3d(-50%, -100%, ${z}px)`;
@@ -1863,6 +2066,186 @@ a.screen__link:focus-visible {
     return frame;
   }
 
+  // Tek kutu içeren dönüştürülebilir düğüm (çubuklar, bacaklar...). transform serbest.
+  function part(cls, transform, def) {
+    const node = el('div', `group ${cls}`.trim());
+    node.style.transform = transform;
+    if (def) node.append(box3d(def));
+    return node;
+  }
+
+  // Futbol topu: yarıçap r, merkezi zeminden r yukarıda
+  function soccerBall({ x, z, rot, scale }) {
+    const r = 24;
+    const node = group('ball pokeable', { x, z, rot, scale }, []);
+    const sphere = el('div', 'group ball__sphere');
+    sphere.style.transform = `translate3d(0, ${-r}px, 0)`;
+
+    const disc = (radius, transform) => {
+      const d = el('i', 'ball__disc');
+      d.style.cssText = `left:${-radius}px;top:${-radius}px;width:${2 * radius}px;height:${2 * radius}px;transform:${transform}`;
+      return d;
+    };
+    // Küre gövdesi: dikey daireler + enlem daireleri
+    for (let a = 0; a < 180; a += 30) sphere.append(disc(r, `rotateY(${a}deg)`));
+    [[0, 1], [0.5, 0.866], [-0.5, 0.866], [0.866, 0.5], [-0.866, 0.5]].forEach(([h, k]) => {
+      sphere.append(disc(r * k, `translate3d(0, ${-h * r}px, 0) rotateX(90deg)`));
+    });
+
+    // 12 beşgen yama: ikosahedron köşeleri (iki kutup + 5'erli iki halka)
+    const size = 17;
+    const spots = [[90, 0], [-90, 0]];
+    for (let i = 0; i < 5; i++) spots.push([26.565, i * 72], [-26.565, i * 72 + 36]);
+    spots.forEach(([lat, lon]) => {
+      const patch = el('i', 'ball__patch');
+      patch.style.cssText = `left:${-size / 2}px;top:${-size / 2}px;width:${size}px;height:${size}px;`
+        + `transform:rotateY(${lon}deg) rotateX(${lat}deg) translateZ(${r + 0.6}px)`;
+      sphere.append(patch);
+    });
+
+    node.append(sphere);
+    return node;
+  }
+
+  // Kinex dönme dolap. Tekerlek .ferris__spin içinde döner; kabinler ters yönde
+  // dönerek (.ferris__car) hep dik kalır.
+  function kinexFerrisWheel({ x, z, rot, scale }) {
+    const R = 84, HUB = 150, SIDE = 13, SEGS = 16, SPOKES = 8;
+    const RED_C = '#d82800', BLUE = '#0058f8', YELLOW = '#f8b800', GREEN_D = '#00a800', GREY_C = '#bcbcbc';
+    const CARS = [RED_C, BLUE, YELLOW, GREEN_D, '#6844fc', '#3cbcfc', '#f878f8', '#f87800'];
+    const segLen = 2 * R * Math.sin(Math.PI / SEGS) + 2;
+    const frameZ = SIDE + 9;
+    const root = group('ferris pokeable', { x, z, rot, scale }, [
+      // Taban plakası (üstünde K'NEX yazısı), ayak rayları ve aks
+      { w: 200, h: 8, d: 64, y: -4, c: '#2c2c3a', cls: 'ferris__base', skip: ['bottom'] },
+      ...[-1, 1].map((s) => ({ w: 150, h: 6, d: 6, y: -11, z: s * frameZ, c: GREY_C, skip: ['bottom'] })),
+      { w: 8, h: 8, d: 2 * frameZ + 6, y: -HUB, c: GREY_C },
+    ]);
+    root.querySelector('.ferris__base > .face--front').textContent = "K'NEX";
+
+    // A şeklinde ayaklar (ön ve arka tarafta ikişer)
+    const footX = 68;
+    const legLen = Math.hypot(footX, HUB);
+    const legAng = Math.atan2(HUB, footX) * 180 / Math.PI;
+    [-1, 1].forEach((sz) => {
+      [1, -1].forEach((sx) => {
+        const ang = sx === 1 ? legAng : 180 - legAng;
+        root.append(part('', `translate3d(${sx * footX / 2}px, ${-HUB / 2}px, ${sz * frameZ}px) rotateZ(${ang}deg)`,
+          { w: legLen, h: 6, d: 6, c: RED_C }));
+      });
+    });
+
+    // Dönen tekerlek
+    const hub = el('div', 'group');
+    hub.style.transform = `translate3d(0, ${-HUB}px, 0)`;
+    const spin = el('div', 'group ferris__spin');
+    hub.append(spin);
+    spin.append(box3d({ w: 14, h: 14, d: 2 * SIDE + 6, c: YELLOW }));
+    [-1, 1].forEach((sz) => {
+      for (let i = 0; i < SEGS; i++) {
+        spin.append(part('', `rotateZ(${i * 360 / SEGS}deg) translateX(${R}px)`, { w: 5, h: segLen, d: 5, z: sz * SIDE, c: BLUE }));
+      }
+      for (let i = 0; i < SPOKES; i++) {
+        spin.append(part('', `rotateZ(${i * 360 / SPOKES}deg)`, { w: R, h: 3, d: 3, x: R / 2, z: sz * SIDE, c: '#fcfcfc' }));
+      }
+    });
+    for (let i = 0; i < SPOKES; i++) {
+      const a = i * 360 / SPOKES;
+      const arm = part('', `rotateZ(${a}deg) translateX(${R}px)`, { w: 4, h: 4, d: 2 * SIDE, c: '#fcfcfc' });
+      // Kabin: ters dönüşle dik kalır
+      const car = el('div', 'group ferris__car');
+      car.style.transform = `rotateZ(${-a}deg)`;
+      car.append(
+        box3d({ w: 2, h: 14, d: 2, y: 7, c: GREY_C }),
+        box3d({ w: 22, h: 16, d: 2 * SIDE - 4, y: 22, c: CARS[i % CARS.length] }),
+        box3d({ w: 26, h: 4, d: 2 * SIDE, y: 12, c: '#fcfcfc', skip: ['bottom'] }),
+      );
+      arm.append(car);
+      spin.append(arm);
+    }
+    root.append(hub, bubble('bFerris', -HUB - R - 18, 0));
+    return root;
+  }
+
+  // Playcups: ters çevrilmiş renkli bardaklardan piramit + ağzı açık bir bardak
+  function playCups({ x, z, rot, scale }) {
+    const TIERS = [[26, 10], [22, 10], [18, 8]];   // genişlik, yükseklik (alttan üste)
+    const cupH = TIERS.reduce((sum, [, h]) => sum + h, 0);
+    const cup = (cx, base, c, cz = 0) => {
+      let y = base;
+      return TIERS.map(([w, h]) => {
+        y -= h;
+        return { w, h, d: w, x: cx, y: y + h / 2, z: cz, c, skip: ['bottom'] };
+      });
+    };
+    // Ağzı yukarı bakan bardak: yukarı doğru genişler, içi koyu
+    const open = (cx, cz, c) => {
+      let y = 0;
+      const tiers = [...TIERS].reverse().map(([w, h]) => {
+        y -= h;
+        return { w, h, d: w, x: cx, y: y + h / 2, z: cz, c, skip: ['bottom'] };
+      });
+      tiers.push({ w: 28, h: 3, d: 28, x: cx, y: y - 1.5, z: cz, c: '#fcfcfc', cls: 'cup__mouth' });
+      return tiers;
+    };
+    const RED = '#d82800', BLUE = '#0058f8', YEL = '#f8b800', GRN = '#00a800', PUR = '#6844fc', CYN = '#3cbcfc';
+    const node = group('cups pokeable', { x, z, rot, scale }, [
+      ...cup(-30, 0, RED), ...cup(0, 0, BLUE), ...cup(30, 0, YEL),
+      ...cup(-15, -cupH, GRN), ...cup(15, -cupH, PUR),
+      ...cup(0, -2 * cupH, CYN),
+      ...open(62, 36, '#f878f8'),
+    ]);
+    node.append(bubble('bCups', -3 * cupH - 8, 0));
+    return node;
+  }
+
+  // Kitaplık: 3 raf; ilk kitaplar TECH adlarını taşır ve tıklanınca sırtından çıkar
+  function bookshelf({ x, z, rot, scale }) {
+    const W = 118, H = 210, D = 38, ROWS = [0, -68, -136];
+    const WOOD = '#a8703c', DARK = '#7c4c20';
+    const COLORS = ['#d82800', '#0058f8', '#f8b800', '#00a800', '#6844fc', '#3cbcfc', '#f878f8', '#f87800'];
+    const WIDTHS = [9, 12, 8, 11, 10, 8, 12, 9];
+    const HEIGHTS = [48, 54, 42, 50, 46, 56, 44, 52];
+    const root = group('shelf', { x, z, rot, scale }, [
+      { w: 5, h: H, d: D, x: -W / 2 + 2.5, y: -H / 2, c: WOOD, skip: ['bottom'] },
+      { w: 5, h: H, d: D, x: W / 2 - 2.5, y: -H / 2, c: WOOD, skip: ['bottom'] },
+      { w: W, h: H, d: 3, y: -H / 2, z: -D / 2 + 1.5, c: DARK },
+      { w: W, h: 6, d: D, y: -H + 3, c: WOOD },
+      ...ROWS.map((y) => ({ w: W - 10, h: 5, d: D - 2, y: y - 2.5, c: WOOD })),
+    ]);
+    let n = 0, tech = 0;
+    ROWS.forEach((row, r) => {
+      let cursor = -W / 2 + 8;
+      for (let i = 0; ; i++) {
+        const k = (i + r * 3) % WIDTHS.length;
+        const w = WIDTHS[k], h = HEIGHTS[(k + r) % HEIGHTS.length];
+        if (cursor + w > W / 2 - 7) break;
+        const label = i < 3 && tech < TECH.length ? TECH[tech++] : null;
+        const book = group(label ? 'book pokeable' : 'book', { x: cursor + w / 2, y: row - 5, z: 2 }, [
+          { w, h, d: 24, y: -h / 2, c: COLORS[(n++ * 3 + r) % COLORS.length], skip: ['bottom'] },
+        ]);
+        if (label) book.append(bubble(label, -h - 4, 16));
+        root.append(book);
+        cursor += w + 1;
+      }
+    });
+    return root;
+  }
+
+  // Posta kutusu: tıklanınca (e-posta tanımlıysa) mailto açar
+  function mailbox({ x, z, rot, scale }) {
+    const BLUE = '#0058f8', RED = '#d82800';
+    const node = group('mailbox pokeable', { x, z, rot, scale }, [
+      { w: 8, h: 70, d: 8, y: -35, c: '#a8703c', skip: ['bottom'] },
+      { w: 38, h: 28, d: 54, y: -84, c: BLUE, cls: 'mailbox__body', skip: ['bottom'] },
+      { w: 42, h: 5, d: 58, y: -100.5, c: '#0044c0' },
+      { w: 4, h: 24, d: 4, x: 22, y: -96, z: -8, c: RED },
+      { w: 3, h: 9, d: 14, x: 22, y: -108, z: -2, c: RED },
+    ]);
+    node.append(bubble(CONTACT.email ? 'bMail' : 'soon', -118, 6));
+    return node;
+  }
+
   function buildRoom() {
     const WHITE = '#fcfcfc', BLACK = '#000000', RED = '#d82800';
     const GREEN = '#58d854', GREEN_D = '#00a800', LIME = '#b8f818', GREY = '#bcbcbc';
@@ -1880,7 +2263,7 @@ a.screen__link:focus-visible {
       ...side(9, { w: 10, h: 8, d: 44, y: -4, z: 32, c: GREEN, skip: ['bottom'] }),   // uzatılmış bacaklar
       ...side(9, { w: 14, h: 12, d: 6, y: -6, z: 57, c: GREEN_D, skip: ['bottom'] }), // ayaklar
     ]);
-    kermit.append(bubble('VRAK!', -88, 10));
+    kermit.append(bubble('bKermit', -88, 10));
 
     // Snoopy: kulübesinin çatısında oturuyor (kulübe grubunun içine eklenir)
     const snoopy = group('snoopy pokeable', { y: -122, z: -6, scale: 1.4 }, [
@@ -1899,7 +2282,7 @@ a.screen__link:focus-visible {
       { w: 5, h: 5, d: 8, y: -10, z: -14, c: WHITE },                                 // kuyruk
       { w: 5, h: 5, d: 4, y: -14, z: -19, c: BLACK },                                 // kuyruk ucu
     ]);
-    snoopy.append(bubble('HAV!', -66, 12));
+    snoopy.append(bubble('bSnoopy', -66, 12));
 
     // Woodstock: çatıda, Snoopy'nin önünde
     const YELLOW = '#f8d800', ORANGE = '#f87800';
@@ -1911,7 +2294,7 @@ a.screen__link:focus-visible {
       { w: 2, h: 5, d: 2, x: 2, y: -25.5, z: -3, c: YELLOW },
       ...side(3, { w: 2, h: 3, d: 2, y: -1.5, c: ORANGE, skip: ['bottom'] }),
     ]);
-    woodstock.append(bubble('CİK!', -32, 8));
+    woodstock.append(bubble('bWoodstock', -32, 8));
 
     // Snoopy'nin kırmızı kulübesi: arkada sağda, basamaklı çatılı
     const ROOF = '#a81000';
@@ -1926,7 +2309,7 @@ a.screen__link:focus-visible {
     doghouse.append(snoopy, woodstock);
 
     // Kırmızı çocuk sandalyesi: arkada solda
-    const chair = group('chair pokeable', { x: -500, z: -150, rot: 28, scale: 1.75 }, [
+    const chair = group('chair pokeable', { x: -430, z: -135, rot: 28, scale: 1.75 }, [
       { w: 60, h: 8, d: 56, y: -44, c: RED },                                          // oturak
       ...side(26, { w: 8, h: 40, d: 8, y: -20, z: 24, c: ROOF, skip: ['bottom'] }),    // ön ayaklar
       ...side(26, { w: 8, h: 104, d: 8, y: -52, z: -24, c: ROOF, skip: ['bottom'] }),  // arka ayak + sırt direği
@@ -1934,16 +2317,21 @@ a.screen__link:focus-visible {
       { w: 44, h: 10, d: 6, y: -70, z: -24, c: RED },
     ]);
 
-    // Futbol topu: arkada, kulübenin yanında (köşeli, siyah yamalı)
-    const patch = { c: BLACK };
-    const ball = group('ball pokeable', { x: 545, z: -150, rot: 20, scale: 1.3 }, [
-      { w: 34, h: 34, d: 34, y: -23, c: WHITE },
-      ...side(20, { w: 6, h: 20, d: 20, y: -23, ...patch }),
-      { w: 20, h: 6, d: 20, y: -43, ...patch },
-      { w: 20, h: 6, d: 20, y: -3, ...patch, skip: ['bottom'] },
-      { w: 20, h: 20, d: 6, y: -23, z: 20, ...patch },
-      { w: 20, h: 20, d: 6, y: -23, z: -20, ...patch },
-    ]);
+    // Futbol topu: küre (üst üste binen daireler) + 12 siyah beşgen yama
+    const ball = soccerBall({ x: 405, z: 150, rot: 20, scale: 1.5 });
+    ball.append(bubble('bBall', -80, 0));
+
+    // Kinex dönme dolap: sağ köşede, kendi etrafında dönen tekerlek
+    const ferris = kinexFerrisWheel({ x: 575, z: 0, rot: -34, scale: 1.3 });
+
+    // Playcups: sol köşede bardak piramidi + ağzı açık tek bardak
+    // Kitaplık: sol arka köşe
+    const shelf = bookshelf({ x: -632, z: -210, rot: 8, scale: 1.05 });
+
+    // Posta kutusu: sağ önde, topun yanında
+    const mail = mailbox({ x: 255, z: 225, rot: -20, scale: 1.3 });
+
+    const cups = playCups({ x: -560, z: 120, rot: 24, scale: 1.5 });
 
     // İki oyun kolu: kasetlerin önünde, kabloları rafın altından konsola uzanıyor
     const pad = (dir) => group('controller pokeable', { x: 120 * dir, z: 305, rot: 15 * dir }, [
@@ -1951,20 +2339,7 @@ a.screen__link:focus-visible {
       { w: 4, h: 3, d: 110, y: -1.5, z: -74, c: '#1c1c2c', skip: ['bottom'] },
     ]);
 
-    // Harfli küpler (arka köşelerde)
-    const blocks = (x, z, rot, defs) => {
-      const node = group('blocks pokeable', { x, z, rot }, defs.map(([bx, by, c]) => (
-        { w: 44, h: 44, d: 44, x: bx, y: by, c, cls: 'block', skip: by === -22 ? ['bottom'] : [] }
-      )));
-      [...node.children].forEach((b, i) => { b.querySelector('.face--front').textContent = defs[i][3]; });
-      return node;
-    };
-
-    $('rack').before(
-      kermit, doghouse, chair, ball, pad(-1), pad(1),
-      blocks(-600, 110, 18, [[-26, -22, RED, 'A'], [26, -22, '#0058f8', 'B'], [0, -66, '#f8b800', 'C']]),
-      blocks(600, 30, -24, [[0, -22, '#6844fc', '1'], [4, -66, GREEN_D, '2']]),
-    );
+    $('rack').before(kermit, doghouse, chair, shelf, mail, ball, ferris, cups, pad(-1), pad(1));
 
     // Duvardaki GitHub / LinkedIn / Medium çerçeveleri (üstteki düğmelerle aynı adresler)
     document.querySelector('.wall--back').append(
@@ -1975,14 +2350,16 @@ a.screen__link:focus-visible {
     const cv = LINKS.find((link) => link.cv);
     if (cv) {
       const paper = el(cv.url ? 'a' : 'div', `cv-paper${cv.url ? '' : ' pokeable'}`, 'CV');
+      paper.dataset.i18nAria = 'cvAria';
       if (cv.url) {
         paper.href = cv.url;
         paper.target = '_blank';
         paper.rel = 'noopener noreferrer';
         paper.draggable = false;
-        paper.setAttribute('aria-label', 'CV dosyasını aç');
       }
-      paper.append(el('span', 'cv-paper__note', cv.url ? 'TIKLA' : 'YAKINDA'));
+      const note = el('span', 'cv-paper__note');
+      note.dataset.i18n = cv.url ? 'cvNote' : 'soon';
+      paper.append(note);
       document.querySelector('.wall--back').append(paper);
     }
 
@@ -2017,8 +2394,11 @@ a.screen__link:focus-visible {
     // LOGO ALANI: logo eklemek için bu elemanın içeriğini değiştir
     // (ör. satır içi <svg> ya da CSS ile çizilmiş bir şekil) ve
     // .cartridge__logo'daki kesik çerçeveyi kaldır.
-    label.append(el('span', 'cartridge__logo', 'LOGO'));
-    btn.append(el('span', 'cartridge__grip'), label, el('span', 'cartridge__name', project.shortTitle));
+    const logo = el('span', project.logo ? 'cartridge__logo cartridge__logo--img' : 'cartridge__logo', project.logo ? '' : 'LOGO');
+    if (project.logo) logo.innerHTML = project.logo;   // yalnızca yukarıdaki sabit SVG'ler
+    label.append(logo);
+    const name = el('span', 'cartridge__name');
+    btn.append(el('span', 'cartridge__grip'), label, name);
 
     const [back, ...sides] = faces(['back', 'left', 'right', 'top', 'bottom']);
     back.append(el('span', 'cartridge__back-label'));
@@ -2030,7 +2410,7 @@ a.screen__link:focus-visible {
     cart.append(el('div', 'cartridge__hit'), body);
     cart.addEventListener('click', () => requestToggle(project.id));
 
-    carts.set(project.id, { el: cart, btn, project });
+    carts.set(project.id, { el: cart, btn, name, project });
     return cart;
   }
 
@@ -2039,7 +2419,7 @@ a.screen__link:focus-visible {
     if (!url) {
       const empty = el('span', `${cls} is-empty`, label);
       empty.setAttribute('aria-disabled', 'true');
-      empty.title = 'Yakında';
+      empty.dataset.i18nTitle = 'soonTitle';
       return empty;
     }
     const link = el('a', cls, label);
@@ -2051,14 +2431,84 @@ a.screen__link:focus-visible {
 
   function buildScene() {
     $('owner').textContent = OWNER_NAME;
-    document.title = `${OWNER_NAME} · PORTFOLYO`;
-    $('links').append(...LINKS.map(createLink));
+    $('links').append(...LINKS.map(createLink), createLangButton(), createSoundButton());
     world.style.setProperty('--n', PROJECTS.length);
     // Kasetler DOM'da TV'den önce: Tab sırası kasetler -> ekrandaki link
     $('tv').before(...PROJECTS.map(createCartridge));
     buildRoom();
-    syncUI();
+    applyLang();
     renderIdle();
+  }
+
+  /* ----- Dil: TR / EN ----- */
+  function createLangButton() {
+    const btn = el('button', 'hud__link hud__lang');
+    btn.type = 'button';
+    btn.id = 'lang';
+    btn.dataset.i18nAria = 'langAria';
+    btn.append(el('b', '', 'TR'), el('b', '', 'EN'));
+    btn.addEventListener('click', () => setLang(state.lang === 'tr' ? 'en' : 'tr'));
+    return btn;
+  }
+
+  function createSoundButton() {
+    const btn = el('button', 'hud__link hud__sound');
+    btn.type = 'button';
+    btn.id = 'sound';
+    btn.dataset.i18nAria = 'soundAria';
+    btn.addEventListener('click', () => {
+      sound.on = !sound.on;
+      store.set('sound', sound.on ? '1' : '0');
+      syncSound();
+      sfx('click');
+    });
+    return btn;
+  }
+
+  function syncSound() {
+    const btn = $('sound');
+    btn.textContent = t(sound.on ? 'soundOn' : 'soundOff');
+    btn.classList.toggle('is-off', !sound.on);
+    btn.setAttribute('aria-pressed', String(sound.on));
+  }
+
+  // Pencere: 07:00-19:00 gündüz, diğer saatler gece
+  function applyDaylight() {
+    const hour = new Date().getHours();
+    document.querySelector('.window').dataset.time = hour >= 7 && hour < 19 ? 'day' : 'night';
+  }
+
+  function detectLang() {
+    const saved = store.get('lang');
+    if (saved === 'tr' || saved === 'en') return saved;
+    return (navigator.language || 'tr').toLowerCase().startsWith('tr') ? 'tr' : 'en';
+  }
+
+  function setLang(lang) {
+    state.lang = lang;
+    store.set('lang', lang);
+    applyLang();
+    // Ekrandaki dinamik içerik: boştaki mini oyun ya da takılı projenin metni
+    if (state.inserted === null) {
+      renderIdle();
+    } else {
+      const { project } = carts.get(state.inserted);
+      renderProject(project, ++state.tvToken);
+    }
+  }
+
+  // Sayfadaki tüm statik metinleri seçili dile çevirir
+  function applyLang() {
+    document.documentElement.lang = state.lang;
+    document.title = `${OWNER_NAME} · ${t('docTitle')}`;
+    $('meta-desc').setAttribute('content', t('metaDesc'));
+    document.querySelectorAll('[data-i18n]').forEach((node) => { node.textContent = t(node.dataset.i18n); });
+    document.querySelectorAll('[data-i18n-aria]').forEach((node) => node.setAttribute('aria-label', t(node.dataset.i18nAria)));
+    document.querySelectorAll('[data-i18n-title]').forEach((node) => { node.title = t(node.dataset.i18nTitle); });
+    document.querySelectorAll('#lang b').forEach((b) => b.classList.toggle('is-active', b.textContent.toLowerCase() === state.lang));
+    carts.forEach(({ name, project }) => { name.textContent = L(project.shortTitle); });
+    syncSound();
+    syncUI();
   }
 
   // Durumdan türeyen her şeyi (LED, ışık, aria) tek yerden günceller
@@ -2067,7 +2517,7 @@ a.screen__link:focus-visible {
     carts.forEach(({ btn, project }, id) => {
       const isIn = state.inserted === id;
       btn.setAttribute('aria-pressed', String(isIn));
-      btn.setAttribute('aria-label', `${project.title} kasetini ${isIn ? 'çıkar' : 'tak'}`);
+      btn.setAttribute('aria-label', t(isIn ? 'cartEject' : 'cartInsert', L(project.title)));
     });
   }
 
@@ -2147,6 +2597,7 @@ a.screen__link:focus-visible {
     await moveCart(cart, 'over', '--t-glide', 8);      // 2. yuvanın üstüne süzül
     await moveCart(cart, 'in', '--t-drop', 5);         // 3. yuvaya in
     cart.classList.add('is-settling');                 //    oturma sarsıntısı
+    sfx('insert');
     state.inserted = id;
     syncUI();                                          // 4. LED yanar
     await wait(cssNum('--t-settle'));
@@ -2156,6 +2607,7 @@ a.screen__link:focus-visible {
 
   async function eject(id) {
     const { el: cart } = carts.get(id);
+    sfx('eject');
     tvOff();
     state.inserted = null;
     syncUI();
@@ -2171,7 +2623,7 @@ a.screen__link:focus-visible {
     const idle = el('div', 'screen__idle');
     const play = el('button', 'game');
     play.type = 'button';
-    play.setAttribute('aria-label', 'Mini oyun: başlatmak ve zıplamak için bas');
+    play.setAttribute('aria-label', t('gameAria'));
     const canvas = el('canvas');
     canvas.width = GAME.w;
     canvas.height = GAME.h;
@@ -2182,9 +2634,9 @@ a.screen__link:focus-visible {
     play.addEventListener('pointerdown', () => { if (state.game.mode === 'playing') gameInput(); });
     play.addEventListener('click', (e) => { if (state.game.mode !== 'playing' || e.detail === 0) gameInput(); });
     idle.append(
-      el('p', 'screen__idle-text', 'KASET TAK'),
+      el('p', 'screen__idle-text', t('idle')),
       play,
-      el('p', 'screen__hint', 'MİNİ OYUN: TIKLA / BOŞLUK'),
+      el('p', 'screen__hint', t('gameHint')),
     );
     screen.replaceChildren(idle);
     mountGame(canvas);
@@ -2211,15 +2663,16 @@ a.screen__link:focus-visible {
   }
 
   function renderProject(project, token) {
-    const title = el('h2', 'screen__title', project.title);
+    const title = el('h2', 'screen__title', L(project.title));
+    const text = L(project.description);
 
     // Ekran okuyucu tam metni bir kez okur; harf harf yazılan kopya gizlidir.
     const desc = el('p', 'screen__desc');
     const typed = el('span');
     typed.setAttribute('aria-hidden', 'true');
-    const chars = [...project.description].map((ch) => el('span', 'ch', ch));
+    const chars = [...text].map((ch) => el('span', 'ch', ch));
     typed.append(...chars);
-    desc.append(el('span', 'sr-only', project.description), typed);
+    desc.append(el('span', 'sr-only', text), typed);
 
     let link;
     if (project.url) {
@@ -2230,9 +2683,9 @@ a.screen__link:focus-visible {
       link.draggable = false;
       const arrow = el('span', 'screen__arrow');
       arrow.setAttribute('aria-hidden', 'true');
-      link.append(arrow, 'PROJEYE GİT');
+      link.append(arrow, t('goProject'));
     } else {
-      link = el('span', 'screen__link screen__link--soon', 'YAKINDA');
+      link = el('span', 'screen__link screen__link--soon', t('soon'));
       link.setAttribute('aria-disabled', 'true');
     }
 
@@ -2306,7 +2759,7 @@ a.screen__link:focus-visible {
     const g = state.game;
     if (g.mode === 'ready') startGame();
     else if (g.mode === 'over' && performance.now() - g.overAt > GAME.restartDelay) startGame();
-    else if (g.mode === 'playing' && g.alt === 0) g.vy = GAME.jump;
+    else if (g.mode === 'playing' && g.alt === 0) { g.vy = GAME.jump; sfx('jump'); }
   }
 
   function gameFrame(now) {
@@ -2344,6 +2797,7 @@ a.screen__link:focus-visible {
     if (g.obstacles.some((o) => o.x < right && o.x + o.w > left && g.alt < o.h - 1)) {
       g.mode = 'over';
       g.overAt = now;
+      sfx('over');
       if (g.score > g.best) {
         g.best = Math.floor(g.score);
         store.set('best', String(g.best));
@@ -2388,13 +2842,13 @@ a.screen__link:focus-visible {
     // Skor ve rekor
     ctx.fillStyle = ink;
     ctx.textAlign = 'left';
-    ctx.fillText(`REKOR ${pad4(g.best)}`, 0, 0);
+    ctx.fillText(`${t('best')} ${pad4(g.best)}`, 0, 0);
     ctx.textAlign = 'right';
     ctx.fillText(pad4(g.score), GAME.w, 0);
 
     ctx.textAlign = 'center';
-    if (g.mode === 'ready') ctx.fillText('OYNA', GAME.w / 2, 26);
-    if (g.mode === 'over') ctx.fillText('OYUN BİTTİ', GAME.w / 2, 26);
+    if (g.mode === 'ready') ctx.fillText(t('play'), GAME.w / 2, 26);
+    if (g.mode === 'over') ctx.fillText(t('over'), GAME.w / 2, 26);
   }
 
   /* ----- Statik / karıncalanma (görselsiz, canvas gürültüsü) ----- */
@@ -2431,12 +2885,17 @@ a.screen__link:focus-visible {
     node.classList.remove('is-poked');
     void node.offsetWidth;   // animasyonu baştan başlatmak için reflow
     node.classList.add('is-poked');
+    sfx(node.classList.contains('mailbox') ? 'mail' : 'poke');
   }
 
   function bindPokes() {
     world.addEventListener('click', (e) => {
       const target = e.target.closest('.pokeable');
-      if (target) poke(target);
+      if (!target) return;
+      poke(target);
+      if (target.classList.contains('mailbox') && CONTACT.email) {
+        window.location.href = `mailto:${CONTACT.email}`;
+      }
     });
     world.addEventListener('animationend', (e) => {
       if (e.target.classList.contains('is-poked')) e.target.classList.remove('is-poked');
@@ -2669,7 +3128,11 @@ a.screen__link:focus-visible {
   /* ==========================================================
      10. BAŞLAT
      ========================================================== */
+  state.lang = detectLang();
+  sound.on = store.get('sound') === '1';
   buildScene();
+  applyDaylight();
+  setInterval(applyDaylight, 5 * 60 * 1000);
   fitScene();
   bindInput();
   bindPokes();
