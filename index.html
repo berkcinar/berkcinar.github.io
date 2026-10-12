@@ -9,8 +9,8 @@
 <meta property="og:type" content="website">
 <meta property="og:title" content="Berk Çinar · Portfolio">
 <meta property="og:description" content="8-bit retro game themed portfolio: insert a cartridge, play the project.">
-<!-- Yayına alınca og:image adresini tam URL yap (ör. https://siteadi.com/og-image.png) -->
-<meta property="og:image" content="og-image.png">
+<meta property="og:image" content="https://berkcinar.github.io/og-image.png">
+<meta property="og:url" content="https://berkcinar.github.io/">
 <meta name="twitter:card" content="summary_large_image">
 <!-- Tarayıcının favicon.ico istemesini engeller (sayfada görsel isteği olmasın) -->
 <link rel="icon" href="data:,">
@@ -1754,6 +1754,8 @@ a.screen__link:focus-visible {
   // Kitaplıktaki kitaplar: tıklayınca sırtındaki teknolojinin adı çıkar
   const TECH = ['PYTHON', 'GO', 'NODE.JS', 'TYPESCRIPT', 'REACT', 'NEXT.JS', 'AWS', 'GCP', 'TERRAFORM'];
 
+  const KOVULMA_LOGO = '<svg viewBox="0 0 64 64"><rect width="64" height="64" rx="16" fill="#b91c1c"/><rect x="12" y="18" width="40" height="28" rx="3" fill="#fff"/><path d="M12 21l20 14 20-14" fill="none" stroke="#b91c1c" stroke-width="3" stroke-linejoin="round"/></svg>';
+
   const SOON_DESC = { tr: 'Çok yakında...', en: 'Coming soon...' };
   const PROJECTS = [
     {
@@ -1780,7 +1782,18 @@ a.screen__link:focus-visible {
       logo: LOGOS.cloud,
       color: '#0058f8',
     },
-    { id: 'proje-3', title: { tr: 'PROJE 3', en: 'PROJECT 3' }, shortTitle: { tr: 'PROJE 3', en: 'PROJ 3' }, description: SOON_DESC, url: '', color: '#00a800' },
+    {
+      id: 'kovulma',
+      title: 'Kovulma!',
+      shortTitle: 'KOVULMA',
+      description: {
+        tr: 'Yazılım işinden kovulmamaya çalıştığın tatlı, 3 boyutlu tarayıcı oyunu. İş güvencen sıfırlanırsa İK\'dan mail gelir. Three.js, Supabase.',
+        en: 'A cute 3D browser game where you try not to get fired from your software job. If job security hits zero, HR sends you an email. Three.js, Supabase.',
+      },
+      url: 'https://kovulma.vercel.app/',
+      logo: KOVULMA_LOGO,
+      color: '#00a800',
+    },
     { id: 'proje-4', title: { tr: 'PROJE 4', en: 'PROJECT 4' }, shortTitle: { tr: 'PROJE 4', en: 'PROJ 4' }, description: SOON_DESC, url: '', color: '#f8b800' },
     { id: 'proje-5', title: { tr: 'PROJE 5', en: 'PROJECT 5' }, shortTitle: { tr: 'PROJE 5', en: 'PROJ 5' }, description: SOON_DESC, url: '', color: '#6844fc' },
   ];
