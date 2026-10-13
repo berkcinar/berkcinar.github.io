@@ -762,6 +762,14 @@ a.cv-paper:focus-visible {
 .ferris .face { box-shadow: none; }
 
 .ferris__spin { animation: ferris-spin var(--t-ferris) linear infinite; }
+
+/* Hafif mod (dokunmatik cihazlar / iOS): sürekli yeniden çizim yaratan efektleri kapat */
+.is-lite .ferris__spin,
+.is-lite .ferris__car,
+.is-lite .tv__glass,
+.is-lite .fx--scan::after { animation: none; }
+.is-lite .face { box-shadow: none; }
+.is-lite .game canvas { filter: none; }
 .ferris__car { animation: ferris-counter var(--t-ferris) linear infinite; }
 
 .ferris__base > .face--front {
@@ -2814,7 +2822,7 @@ a.screen__link:focus-visible {
       g.mode = 'over';
       g.overAt = now;
       sfx('over');
-      if (!reducedMotion.matches && !staticTimer) startStatic();
+      if (!staticTimer) startStatic();
       if (g.score > g.best) {
         g.best = Math.floor(g.score);
         store.set('best', String(g.best));
@@ -2887,7 +2895,7 @@ a.screen__link:focus-visible {
   function startStatic() {
     stopStatic();
     drawStatic();
-    if (!reducedMotion.matches) staticTimer = setInterval(drawStatic, STATIC_INTERVAL);
+    if (!reducedMotion.matches && !root.classList.contains('is-lite')) staticTimer = setInterval(drawStatic, STATIC_INTERVAL);
   }
 
   function stopStatic() {
@@ -3009,7 +3017,7 @@ a.screen__link:focus-visible {
     c.zoom += (c.tZoom - c.zoom) * k;
 
     // Boşta hafif salınım; etkileşimde söner
-    const idle = !reducedMotion.matches && state.game.mode !== 'playing' && state.pointers.size === 0 && now - c.lastInput > CAM.idleDelay;
+    const idle = !reducedMotion.matches && !root.classList.contains('is-lite') && state.game.mode !== 'playing' && state.pointers.size === 0 && now - c.lastInput > CAM.idleDelay;
     c.sway += ((idle ? 1 : 0) - c.sway) * (1 - Math.exp(-dt * 2));
     const yaw = c.yaw + Math.sin(now / 2600) * CAM.swayYaw * c.sway;
     const pitch = c.pitch + Math.sin(now / 3700) * CAM.swayPitch * c.sway;
@@ -3145,6 +3153,9 @@ a.screen__link:focus-visible {
   /* ==========================================================
      10. BAŞLAT
      ========================================================== */
+  // Hafif mod: iOS Safari ve dokunmatik cihazlar 1000+ yüzlü 3D sahneyi akıcı çizemiyor
+  const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if (isIOS || matchMedia('(pointer: coarse)').matches) root.classList.add('is-lite');
   state.lang = detectLang();
   // Dokunmatik cihazda teker / klavye yok: ipucu metnini parmak hareketlerine göre göster
   if (matchMedia('(pointer: coarse)').matches) $('hint').dataset.i18n = 'hintTouch';
