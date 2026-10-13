@@ -759,7 +759,7 @@ a.cv-paper:focus-visible {
 
 /* Kinex dönme dolap: tekerlek döner, kabinler dik kalır */
 .ferris .group { pointer-events: inherit; }
-.ferris .face { box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .3); }
+.ferris .face { box-shadow: none; }
 
 .ferris__spin { animation: ferris-spin var(--t-ferris) linear infinite; }
 .ferris__car { animation: ferris-counter var(--t-ferris) linear infinite; }
@@ -2125,7 +2125,7 @@ a.screen__link:focus-visible {
   // Kinex dönme dolap. Tekerlek .ferris__spin içinde döner; kabinler ters yönde
   // dönerek (.ferris__car) hep dik kalır.
   function kinexFerrisWheel({ x, z, rot, scale }) {
-    const R = 84, HUB = 150, SIDE = 13, SEGS = 16, SPOKES = 8;
+    const R = 84, HUB = 150, SIDE = 13, SEGS = 12, SPOKES = 4, CARS_N = 8;
     const RED_C = '#d82800', BLUE = '#0058f8', YELLOW = '#f8b800', GREEN_D = '#00a800', GREY_C = '#bcbcbc';
     const CARS = [RED_C, BLUE, YELLOW, GREEN_D, '#6844fc', '#3cbcfc', '#f878f8', '#f87800'];
     const segLen = 2 * R * Math.sin(Math.PI / SEGS) + 2;
@@ -2164,8 +2164,8 @@ a.screen__link:focus-visible {
         spin.append(part('', `rotateZ(${i * 360 / SPOKES}deg)`, { w: R, h: 3, d: 3, x: R / 2, z: sz * SIDE, c: '#fcfcfc' }));
       }
     });
-    for (let i = 0; i < SPOKES; i++) {
-      const a = i * 360 / SPOKES;
+    for (let i = 0; i < CARS_N; i++) {
+      const a = i * 360 / CARS_N;
       const arm = part('', `rotateZ(${a}deg) translateX(${R}px)`, { w: 4, h: 4, d: 2 * SIDE, c: '#fcfcfc' });
       // Kabin: ters dönüşle dik kalır
       const car = el('div', 'group ferris__car');
@@ -2758,6 +2758,7 @@ a.screen__link:focus-visible {
     const g = state.game;
     resetGame();
     g.mode = 'playing';
+    stopStatic();   // oyun sırasında TV gürültüsünü çizme
     g.last = performance.now();
     g.raf = requestAnimationFrame(gameFrame);
   }
@@ -2813,6 +2814,7 @@ a.screen__link:focus-visible {
       g.mode = 'over';
       g.overAt = now;
       sfx('over');
+      if (!reducedMotion.matches && !staticTimer) startStatic();
       if (g.score > g.best) {
         g.best = Math.floor(g.score);
         store.set('best', String(g.best));
@@ -3007,7 +3009,7 @@ a.screen__link:focus-visible {
     c.zoom += (c.tZoom - c.zoom) * k;
 
     // Boşta hafif salınım; etkileşimde söner
-    const idle = !reducedMotion.matches && state.pointers.size === 0 && now - c.lastInput > CAM.idleDelay;
+    const idle = !reducedMotion.matches && state.game.mode !== 'playing' && state.pointers.size === 0 && now - c.lastInput > CAM.idleDelay;
     c.sway += ((idle ? 1 : 0) - c.sway) * (1 - Math.exp(-dt * 2));
     const yaw = c.yaw + Math.sin(now / 2600) * CAM.swayYaw * c.sway;
     const pitch = c.pitch + Math.sin(now / 3700) * CAM.swayPitch * c.sway;
